@@ -16,6 +16,9 @@ from helpers.api import DiscordAPIHelper
 EMOJI_FILE = "emojis.json"
 PAT = re.compile(r";([A-Za-z0-9_]+);")
 
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GIST_ID = os.getenv("GIST_ID")
+
 class RenameEmojiModal(discord.ui.Modal, title="Rename Emoji"):
     def __init__(self, cog: "EmojiCog", emoji_id: str, old_name: str, is_animated: bool):
         super().__init__()
@@ -228,9 +231,6 @@ class EmojiCog(commands.Cog):
         self.load()
 
     def load(self):
-        if not os.path.exists(EMOJI_FILE):
-            with open(EMOJI_FILE, "w", encoding="utf8") as f:
-                json.dump({}, f, indent=2)
         if os.path.exists(EMOJI_FILE):
             with open(EMOJI_FILE, "r", encoding="utf8") as f:
                 self.emotes = json.load(f)
@@ -240,6 +240,50 @@ class EmojiCog(commands.Cog):
     def save(self):
         with open(EMOJI_FILE, "w", encoding="utf8") as f:
             json.dump(self.emotes, f, indent=2)
+        
+        # Trigger async sync task to update Gist on save
+        if hasattr(self.bot, "loop") and self.bot.loop.is_running():
+            self.bot.loop.create_task(self.sync_to_gist())
+
+    async def sync_to_gist(self):
+        """Pushes the current formatted emotes list directly to GitHub Gist."""
+        if not GITHUB_TOKEN or not GIST_ID:
+            return
+
+        formatted_emojis = []
+        for name, tag in self.emotes.items():
+            match = re.match(r"<(a?):([^:]+):(\d+)>", tag)
+            if match:
+                formatted_emojis.append({
+                    "id": match.group(3),
+                    "name": name,
+                    "animated": bool(match.group(1))
+                })
+
+        url = f"https://api.github.com/gists/{GIST_ID}"
+        headers = {
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        payload = {
+            "files": {
+                "emojis.json": {
+                    "content": json.dumps(formatted_emojis, indent=2)
+                }
+            }
+        }
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.patch(url, json=payload, headers=headers) as resp:
+                    if resp.status == 200:
+                        print(f"[+] Synced {len(formatted_emojis)} emojis to GitHub Gist!")
+                    else:
+                        text = await resp.text()
+                        print(f"[!] Gist sync failed ({resp.status}): {text}")
+        except Exception as e:
+            print(f"[!] Gist sync exception: {e}")
 
     async def refresh_emojis(self):
         status, data = await DiscordAPIHelper.request("GET", "/emojis")
@@ -254,7 +298,6 @@ class EmojiCog(commands.Cog):
                 f"<{'a' if e.get('animated') else ''}:{e['name']}:{e['id']}>"
             )
         self.save()
-        print(f"[+] Auto-synced {len(self.emotes)} application emojis from Discord API.")
 
     def repl(self, txt: str) -> str:
         def replace(match):
