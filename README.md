@@ -7,7 +7,9 @@ A LIGHTWEIGHT Discord bot built with `discord.py` that allows toggleable command
 - **Toggle Command Groups**: Enable/disable the commands u want from your `.env` file.
 - **Emojis free(!)** (_Enabled by Default_): Add emojis to your messages (animated or not), copy emojis from servers and edit your messages.
 
-![e](./images/1.png)
+|    Normal emojis     |   Animated Emojis    |
+| :------------------: | :------------------: |
+| ![e](./images/1.png) | ![e](./images/4.gif) |
 
 <small> Example message in private DMs </small>
 
@@ -57,7 +59,7 @@ Use the `/stealemoji ID NEWNAME` for the quickest copies. You can copy the emoji
 
 ### 6. Commands
 
-You can now use the emoji commands. Most important ones are: `/elist` (list of all emojis), `/search` (to search in your emojis), `/e [msg]` (send message with emojis, e.g. `/e [Hi there ;wave;]`) and `/ed` (edit the last message send).
+You can now use the emoji commands. Most important ones are: `/elist` (list of all emojis), `/search` (to search in your emojis), `/e [msg]` (send message with emojis, e.g. `/e [Hi there ;wave;]`). Replace all Enters with `\n`, all the rest is like a normal message. And `/ed` (edit the last message send).
 
 ![elist](./images/2.png)
 
