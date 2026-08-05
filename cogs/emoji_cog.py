@@ -264,6 +264,7 @@ class EmojiCog(commands.Cog):
         headers = {
             "Authorization": f"Bearer {GITHUB_TOKEN}",
             "Accept": "application/vnd.github+json",
+            "User-Agent": "MyDiscordBot/1.0",
             "X-GitHub-Api-Version": "2022-11-28"
         }
         payload = {
