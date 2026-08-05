@@ -1,6 +1,6 @@
 # Selfhosted User Emojis Discord Bot
 
-A LIGHTWEIGHT Discord bot built with `discord.py` that allows toggleable command modules, customized via an environment configuration file.
+A LIGHTWEIGHT Discord bot built with `discord.py` that allows toggleable command modules, customized via an environment configuration file. Use it in private servers, in your DMs or public servers.
 
 ## Features
 
