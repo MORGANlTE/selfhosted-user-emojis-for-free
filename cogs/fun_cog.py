@@ -15,7 +15,7 @@ class FunCog(commands.Cog):
         guilds=True, dms=True, private_channels=True
     )
     @app_commands.command(name="gift", description="Gift free Discord Nitro")
-    async def gift_command(self, interaction: discord.Interaction):
+    async def gift_command(self, interaction: discord.Interaction, link: str):
         await interaction.response.defer()
         try:
             embed = discord.Embed(
@@ -35,7 +35,7 @@ class FunCog(commands.Cog):
             view.add_item(
                 discord.ui.Button(
                     label="Accept",
-                    url="https://short-url.cc/nitrobasic1w",
+                    url=link,
                     style=discord.ButtonStyle.danger,
                     emoji="<:rainbowboost:1280448859448803520>",
                 )
