@@ -10,6 +10,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from helpers.checks import restrict_to_owner
 from helpers.pagination import Pagination
 
 EMOJI_FILE = "emojis.json"
@@ -154,6 +155,7 @@ class EmojiSelectView(discord.ui.View):
     async def search_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(EmojiSearchModal(self.cog))
 
+@restrict_to_owner
 class EmojiCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot):

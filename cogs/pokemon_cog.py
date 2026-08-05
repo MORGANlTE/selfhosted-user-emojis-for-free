@@ -2,9 +2,10 @@ from datetime import date
 import discord
 from discord import app_commands
 from discord.ext import commands
+from helpers.checks import restrict_to_owner
 from helpers.potd import get_pokemon_of_the_day
 
-
+@restrict_to_owner
 class PokemonCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot):

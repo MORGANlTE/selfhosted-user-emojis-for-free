@@ -41,6 +41,8 @@ Copy the `.default.env` file, rename it to `.env` and fill in the file:
 ```js
 TOKEN=YOUR_DC_BOT_TOKEN (never share this!)
 APP_ID=YOUR_APP_ID
+OWNER_IDs = 123456789012345, 1234567898765
+
 ENABLE_EMOJI_COMMANDS=true
 ENABLE_FUN_COMMANDS=false
 ENABLE_POKEMON_COMMANDS=false
@@ -52,6 +54,10 @@ Enable/disable the extensions you want
 ### 4. Start the bot (on a server)
 
 Just run `python bot.py`
+
+### 5. Install the User Application
+
+To install the App onto your Discord profile (you need this before you can use the commands), go to `https://discord.com/developers/applications/[YOUR_APP_ID]/installation`. There, make sure ✅ User Install and ⬛ Guild Install. This way, you can only user install it. Make sure the `Install Link` is set to `Discord Provided Link`. From there, copy the link and paste it in another tab.
 
 ### 5. Upload/copy (animated) emojis
 
