@@ -646,6 +646,47 @@ class EmojiCog(commands.Cog):
             ephemeral=True,
         )
 
+    @app_commands.allowed_installs(users=True, guilds=False)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.command(
+        name="sync_emojis",
+        description="Publishes the bot's emoji cache for the Vencord plugin.",
+    )
+    async def sync_emojis(self, inter: discord.Interaction):
+        await inter.response.defer(ephemeral=True)
+
+        if not self.emotes:
+            await inter.followup.send(
+                "❌ No emojis currently stored in local library.",
+                ephemeral=True,
+            )
+            return
+
+        formatted_emojis = []
+        for name, tag in self.emotes.items():
+            # Parse <a:name:id> or <:name:id>
+            match = re.match(r"<(a?):([^:]+):(\d+)>", tag)
+            if match:
+                is_animated = bool(match.group(1))
+                emoji_id = match.group(3)
+                formatted_emojis.append({
+                    "id": emoji_id,
+                    "name": name,
+                    "animated": is_animated
+                })
+
+        cache_json = json.dumps(formatted_emojis)
+
+        # Send public payload message in channel that the plugin can read
+        await inter.channel.send(
+            f"```json\nEMOJI_CACHE:{cache_json}\n```"
+        )
+
+        await inter.followup.send(
+            f"✅ Successfully published cache containing **{len(formatted_emojis)}** emojis to this channel!",
+            ephemeral=True,
+        )
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(EmojiCog(bot))
