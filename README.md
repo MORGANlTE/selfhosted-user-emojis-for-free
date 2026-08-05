@@ -21,6 +21,23 @@ A LIGHTWEIGHT Discord bot built with `discord.py` that allows toggleable command
 
 ---
 
+# 🗺️ Project Roadmap
+
+An overview of implemented features, active developments, and future plans for **discord-user-emojis**.
+
+---
+
+### 📊 Progress Overview
+
+| Phase       | Focus Area                          | Status      |
+| :---------- | :---------------------------------- | :---------- |
+| **Phase 1** | Emoji Replacements                  | 🟢 Complete |
+| **Phase 2** | Security                            | 🟢 Complete |
+| **Phase 3** | Mobile                              | 🟢 Complete |
+| **Phase 4** | Client Mods (BetterDiscord/Vencord) | 🔵 Planned  |
+
+Note: Phase 4 will only be implemented if we get enough Stars/Community help to keep the project alive
+
 ## Installation & Setup
 
 ### 1. Requirements
