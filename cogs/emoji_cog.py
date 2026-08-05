@@ -4,7 +4,6 @@ import os
 import re
 import traceback
 from typing import Optional, List
-
 import aiohttp
 import discord
 from discord import app_commands
@@ -12,6 +11,7 @@ from discord.ext import commands
 
 from helpers.checks import restrict_to_owner
 from helpers.pagination import Pagination
+from helpers.api import DiscordAPIHelper
 
 EMOJI_FILE = "emojis.json"
 PAT = re.compile(r";([A-Za-z0-9_]+);")
@@ -37,30 +37,21 @@ class RenameEmojiModal(discord.ui.Modal, title="Rename Emoji"):
         await interaction.response.defer(ephemeral=True)
         new_name = self.new_name_input.value.strip().replace(" ", "_")
 
-        # 1. Update the emoji name on Discord's Application API
-        token = os.environ.get("TOKEN")
-        headers = {
-            "Authorization": f"Bot {token}",
-            "Content-Type": "application/json",
-        }
-        payload = {"name": new_name}
+        # 1. Update the emoji name on Discord's Application API via Helper
+        status, data = await DiscordAPIHelper.request(
+            "PATCH", f"/emojis/{self.emoji_id}", {"name": new_name}
+        )
 
-        async with aiohttp.ClientSession() as session:
-            async with session.patch(
-                f"{self.cog.api}/emojis/{self.emoji_id}", headers=headers, json=payload
-            ) as resp:
-                data = await resp.json()
-                if resp.status != 200:
-                    await interaction.followup.send(
-                        f"❌ Failed to rename emoji via API.\n```{data}```", ephemeral=True
-                    )
-                    return
+        if status != 200:
+            await interaction.followup.send(
+                f"❌ Failed to rename emoji via API.\n```{data}```", ephemeral=True
+            )
+            return
 
         # 2. Update self.emotes dictionary & JSON file
         prefix = "a" if self.is_animated else ""
         new_emoji_string = f"<{prefix}:{new_name}:{self.emoji_id}>"
 
-        # Remove old key if name changed
         if self.old_name in self.cog.emotes:
             del self.cog.emotes[self.old_name]
 
@@ -70,8 +61,9 @@ class RenameEmojiModal(discord.ui.Modal, title="Rename Emoji"):
         # 3. Edit original message feedback
         await interaction.edit_original_response(
             content=f"Successfully renamed {new_emoji_string} to `;{new_name};`",
-            view=None  # Removes the rename button
+            view=None
         )
+
 
 class RenameEmojiView(discord.ui.View):
     def __init__(self, cog: "EmojiCog", emoji_id: str, current_name: str, is_animated: bool):
@@ -91,6 +83,7 @@ class RenameEmojiView(discord.ui.View):
         )
         await interaction.response.send_modal(modal)
 
+
 class EditMessageModal(discord.ui.Modal, title="Edit Last Message"):
     def __init__(self, cog: "EmojiCog", message: discord.InteractionMessage, raw_text: str, reply_user: Optional[discord.User]):
         super().__init__()
@@ -98,37 +91,31 @@ class EditMessageModal(discord.ui.Modal, title="Edit Last Message"):
         self.target_message = message
         self.reply_user = reply_user
 
-        # Pre-fill the modal input with the original raw text (e.g., 'test ;piplup;')
         self.text_input = discord.ui.TextInput(
             label="Message Content",
             style=discord.TextStyle.paragraph,
-            default=raw_text,  # <--- PRE-FILLS THE TEXT FIELD
+            default=raw_text,
             required=True,
             max_length=2000,
         )
         self.add_item(self.text_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # 1. Process the newly edited text
         await interaction.response.defer(ephemeral=True)
         new_raw_text = self.text_input.value
         processed_text = self.cog.repl(new_raw_text.replace("\\n", "\n"))
 
-        # 2. Preserve the previous reply header if it existed
         if self.reply_user:
             processed_text += f"\n-# Replying to {self.reply_user.mention}"
 
-        # 3. Edit the original interaction message directly
         await self.target_message.edit(content=processed_text)
 
-        # 4. Save the updated raw text back into memory for future edits
         self.cog.last_messages[interaction.user.id] = {
             "message": self.target_message,
             "raw_text": new_raw_text,
             "reply_user": self.reply_user,
         }
-        # Ephemeral confirmation so no extra clutter is posted
-        # await interaction.delete_original_response()
+
 
 class EmojiSearchModal(discord.ui.Modal, title="Search Emojis"):
     query = discord.ui.TextInput(
@@ -163,12 +150,12 @@ class EmojiSearchModal(discord.ui.Modal, title="Search Emojis"):
             ephemeral=True,
         )
 
+
 class EmojiSelectMenu(discord.ui.Select):
     def __init__(self, cog: "EmojiCog", emotes_dict: dict):
         self.cog = cog
         options = []
 
-        # Discord Select Menus display up to 25 items max
         for name, syntax in list(emotes_dict.items())[:25]:
             emoji_obj = None
             if syntax.startswith("<"):
@@ -182,7 +169,7 @@ class EmojiSelectMenu(discord.ui.Select):
                     label=name[:100],
                     value=f";{name};",
                     description=f"Select to copy ;{name};",
-                    emoji=emoji_obj,  # Renders the custom emoji thumbnail directly in the list
+                    emoji=emoji_obj,
                 )
             )
 
@@ -208,10 +195,10 @@ class EmojiSelectMenu(discord.ui.Select):
             inline=False,
         )
         embed.add_field(
-                    name="PC Copy",
-                    value=f"```{selected_tag}```",
-                    inline=False,
-                )
+            name="PC Copy",
+            value=f"```{selected_tag}```",
+            inline=False,
+        )
 
         await interaction.response.send_message(
             content=f"**Preview:** {rendered_emoji}",
@@ -230,6 +217,7 @@ class EmojiSelectView(discord.ui.View):
     async def search_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(EmojiSearchModal(self.cog))
 
+
 @restrict_to_owner
 class EmojiCog(commands.Cog):
 
@@ -237,11 +225,9 @@ class EmojiCog(commands.Cog):
         self.bot = bot
         self.emotes = {}
         self.last_messages = {}
-        self.api = f"https://discord.com/api/v10/applications/{os.environ.get('APP_ID')}"
         self.load()
 
     def load(self):
-        # make file if it doesn't exist
         if not os.path.exists(EMOJI_FILE):
             with open(EMOJI_FILE, "w", encoding="utf8") as f:
                 json.dump({}, f, indent=2)
@@ -256,17 +242,19 @@ class EmojiCog(commands.Cog):
             json.dump(self.emotes, f, indent=2)
 
     async def refresh_emojis(self):
-        token = os.environ.get("TOKEN")
-        headers = {"Authorization": f"Bot {token}"}
-        async with aiohttp.ClientSession() as s:
-            async with s.get(f"{self.api}/emojis", headers=headers) as r:
-                data = await r.json()
+        status, data = await DiscordAPIHelper.request("GET", "/emojis")
+        if status != 200:
+            print(f"[!] API Emoji fetch failed with status {status}: {data}")
+            return
+
         self.emotes = {}
-        for e in data.get("items", data):
+        items = data.get("items", data) if isinstance(data, dict) else data
+        for e in items:
             self.emotes[e["name"]] = (
                 f"<{'a' if e.get('animated') else ''}:{e['name']}:{e['id']}>"
             )
         self.save()
+        print(f"[+] Auto-synced {len(self.emotes)} application emojis from Discord API.")
 
     def repl(self, txt: str) -> str:
         def replace(match):
@@ -275,7 +263,6 @@ class EmojiCog(commands.Cog):
                 if not self.emotes:
                     return ";random;"
                 import random
-
                 return random.choice(list(self.emotes.values()))
             return self.emotes.get(name, match.group(0))
 
@@ -286,7 +273,8 @@ class EmojiCog(commands.Cog):
         try:
             await self.refresh_emojis()
         except Exception as e:
-            print(f"Failed to auto-refresh emojis on startup: {e}")
+            print(f"[!] Failed to auto-refresh emojis on startup: {e}")
+
     # /e
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -303,7 +291,6 @@ class EmojiCog(commands.Cog):
         await inter.response.send_message(processed_text)
         msg = await inter.original_response()
 
-        # Save message reference and raw input text in memory
         self.last_messages[inter.user.id] = {
             "message": msg,
             "raw_text": text,
@@ -315,7 +302,6 @@ class EmojiCog(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.command(name="ed", description="Edit your last sent emote message")
     async def ed(self, inter: discord.Interaction):
-        # Retrieve the user's last message data
         user_data = self.last_messages.get(inter.user.id)
 
         if not user_data:
@@ -325,14 +311,12 @@ class EmojiCog(commands.Cog):
             )
             return
 
-        # Open the modal with pre-filled raw text
         modal = EditMessageModal(
             cog=self,
             message=user_data["message"],
             raw_text=user_data["raw_text"],
             reply_user=user_data["reply_user"]
         )
-        
         await inter.response.send_modal(modal)
 
     # /elist
@@ -352,7 +336,7 @@ class EmojiCog(commands.Cog):
                     value=f"📱`;{emoji};`\n```;{emoji};```" + self.emotes[emoji],
                     inline=True,
                 )
-            emb.set_author(name=f"Long press the 📱 field to copy for Mobile")
+            emb.set_author(name="Long press the 📱 field to copy for Mobile")
 
             total_pages = Pagination.compute_total_pages(len(self.emotes), page_size)
             emb.set_footer(text=f"Page {page} from {total_pages}")
@@ -402,7 +386,7 @@ class EmojiCog(commands.Cog):
         for name in self.emotes.keys():
             if current.lower() in name.lower():
                 choices.append(app_commands.Choice(name=name, value=name))
-                if len(choices) >= 25:  # Discord limit for choices
+                if len(choices) >= 25:
                     break
         return choices
 
@@ -429,7 +413,6 @@ class EmojiCog(commands.Cog):
         clean_old_name = old_name.strip().replace(";", "").replace(":", "")
         clean_new_name = new_name.strip().replace(" ", "_").replace(";", "").replace(":", "")
 
-        # 1. Verify emoji exists in local dictionary
         if clean_old_name not in self.emotes:
             await inter.followup.send(
                 f"❌ Emoji `;{clean_old_name};` was not found in your application library.",
@@ -439,7 +422,6 @@ class EmojiCog(commands.Cog):
 
         old_emoji_string = self.emotes[clean_old_name]
 
-        # 2. Extract emoji ID and animated prefix (<a:name:id> or <:name:id>)
         match = re.match(r"<(a?):([^:]+):(\d+)>", old_emoji_string)
         if not match:
             await inter.followup.send(
@@ -448,37 +430,26 @@ class EmojiCog(commands.Cog):
             )
             return
 
-        is_animated_prefix = match.group(1)  # "a" or ""
+        is_animated_prefix = match.group(1)
         emoji_id = match.group(3)
 
-        # 3. Patch emoji name on Discord's Application API
-        token = os.environ.get("TOKEN")
-        headers = {
-            "Authorization": f"Bot {token}",
-            "Content-Type": "application/json",
-        }
-        payload = {"name": clean_new_name}
+        status, data = await DiscordAPIHelper.request(
+            "PATCH", f"/emojis/{emoji_id}", {"name": clean_new_name}
+        )
 
-        async with aiohttp.ClientSession() as session:
-            async with session.patch(
-                f"{self.api}/emojis/{emoji_id}", headers=headers, json=payload
-            ) as resp:
-                data = await resp.json()
-                if resp.status != 200:
-                    await inter.followup.send(
-                        f"❌ Failed to rename emoji via Discord API (Status {resp.status}).\n```{data}```",
-                        ephemeral=True,
-                    )
-                    return
+        if status != 200:
+            await inter.followup.send(
+                f"❌ Failed to rename emoji via Discord API (Status {status}).\n```{data}```",
+                ephemeral=True,
+            )
+            return
 
-        # 4. Update local self.emotes & emojis.json
         new_emoji_string = f"<{is_animated_prefix}:{clean_new_name}:{emoji_id}>"
 
         del self.emotes[clean_old_name]
         self.emotes[clean_new_name] = new_emoji_string
         self.save()
 
-        # 5. Clean success response
         await inter.followup.send(
             f"✓ Successfully renamed {new_emoji_string} from `;{clean_old_name};` to `;{clean_new_name};`!",
             ephemeral=True,
@@ -497,6 +468,7 @@ class EmojiCog(commands.Cog):
             f"Loaded {len(self.emotes)} emojis.", ephemeral=True
         )
 
+    # /addemoji
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.command(name="addemoji", description="Add a new emoji")
@@ -514,22 +486,14 @@ class EmojiCog(commands.Cog):
             "image": "data:image/png;base64,"
             + base64.b64encode(image_bytes).decode(),
         }
-        token = os.environ.get("TOKEN")
-        headers = {
-            "Authorization": f"Bot {token}",
-            "Content-Type": "application/json",
-        }
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{self.api}/emojis", headers=headers, json=payload
-            ) as r:
-                data = await r.json()
-                if r.status != 201:
-                    await inter.followup.send(
-                        f"Failed: {data}", ephemeral=True
-                    )
-                    return
+        status, data = await DiscordAPIHelper.request("POST", "/emojis", payload)
+
+        if status != 201:
+            await inter.followup.send(
+                f"Failed: {data}", ephemeral=True
+            )
+            return
 
         self.emotes[name] = (
             f"<{'a' if data.get('animated') else ''}:{name}:{data['id']}>"
@@ -592,22 +556,13 @@ class EmojiCog(commands.Cog):
                     return
                 image_bytes = await resp.read()
 
-            name = new_name or extracted_name or f"emoji_{emoji_id}"
+        name = new_name or extracted_name or f"emoji_{emoji_id}"
+        payload = {
+            "name": name,
+            "image": "data:image/webp;base64," + base64.b64encode(image_bytes).decode(),
+        }
 
-            payload = {
-                "name": name,
-                "image": "data:image/webp;base64," + base64.b64encode(image_bytes).decode(),
-            }
-            token = os.environ.get("TOKEN")
-            headers = {
-                "Authorization": f"Bot {token}",
-                "Content-Type": "application/json",
-            }
-
-            async with session.post(
-                f"{self.api}/emojis", headers=headers, json=payload
-            ) as response:
-                data = await response.json()
+        status, data = await DiscordAPIHelper.request("POST", "/emojis", payload)
 
         if "id" not in data:
             await inter.followup.send(
@@ -622,7 +577,6 @@ class EmojiCog(commands.Cog):
         self.emotes[name] = emoji_string
         self.save()
 
-        # Create the View with the Rename Button attached
         view = RenameEmojiView(
             cog=self,
             emoji_id=str(data["id"]),
@@ -656,7 +610,6 @@ class EmojiCog(commands.Cog):
 
         clean_name = name.strip().replace(";", "").replace(":", "")
 
-        # 1. Verify emoji exists in local dictionary
         if clean_name not in self.emotes:
             await inter.followup.send(
                 f"❌ Emoji `;{clean_name};` was not found in your application library.",
@@ -666,7 +619,6 @@ class EmojiCog(commands.Cog):
 
         emoji_string = self.emotes[clean_name]
 
-        # 2. Extract emoji ID from stored tag (<a:name:id> or <:name:id>)
         match = re.match(r"<(a?):([^:]+):(\d+)>", emoji_string)
         if not match:
             await inter.followup.send(
@@ -677,39 +629,23 @@ class EmojiCog(commands.Cog):
 
         emoji_id = match.group(3)
 
-        # 3. Send DELETE request to Discord's Application API
-        token = os.environ.get("TOKEN")
-        headers = {
-            "Authorization": f"Bot {token}",
-            "Content-Type": "application/json",
-        }
+        status, data = await DiscordAPIHelper.request("DELETE", f"/emojis/{emoji_id}")
 
-        async with aiohttp.ClientSession() as session:
-            async with session.delete(
-                f"{self.cog_or_api_url}/emojis/{emoji_id}" if hasattr(self, 'cog_or_api_url') else f"{self.api}/emojis/{emoji_id}", 
-                headers=headers
-            ) as resp:
-                # 204 No Content means successful deletion
-                if resp.status not in (200, 204):
-                    try:
-                        data = await resp.json()
-                    except Exception:
-                        data = await resp.text()
-                    await inter.followup.send(
-                        f"❌ Failed to delete emoji via Discord API (Status {resp.status}).\n```{data}```",
-                        ephemeral=True,
-                    )
-                    return
+        if status not in (200, 204):
+            await inter.followup.send(
+                f"❌ Failed to delete emoji via Discord API (Status {status}).\n```{data}```",
+                ephemeral=True,
+            )
+            return
 
-        # 4. Remove key from dictionary and sync emojis.json
         del self.emotes[clean_name]
         self.save()
 
-        # 5. Send success response
         await inter.followup.send(
             f"🗑️ Successfully deleted `;{clean_name};` from your application library!",
             ephemeral=True,
         )
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(EmojiCog(bot))
