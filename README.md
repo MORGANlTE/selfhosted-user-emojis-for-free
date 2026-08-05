@@ -53,9 +53,11 @@ Enable/disable the extensions you want
 
 Just run `python bot.py`
 
-### 5. Copy (animated) emojis from your fav DC servers
+### 5. Upload/copy (animated) emojis
 
-Use the `/stealemoji ID NEWNAME` for the quickest copies. You can copy the emoji ID from Discord emoji panel and rightclicking, copy Emoji ID. If you want, you can also fill in the full emoji name e.g. <:test:1234567890123> and it will copy the name too.
+You can choose to either upload the emojis directly on your application page `https://discord.com/developers/applications/[YOUR_APP_ID]/emojis` or you can choose to upload them directly in Discord with `/addemoji [FILE] [Name]`.
+
+To get them from a server directly Use the `/stealemoji ID NEWNAME` for the quickest copies. You can copy the emoji ID from Discord emoji panel and rightclicking, copy Emoji ID. Then give it a name and voila. If you want, you can also fill in the full emoji name e.g. <:test:1234567890123> and it will copy the name too.
 
 ### 6. Commands
 
