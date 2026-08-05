@@ -77,6 +77,8 @@ You can now use the emoji commands. Most important ones are: `/elist` (list of a
 
 <small> Search command</small>
 
+There are other options to rename and delete the emojis too.
+
 ## Contributing
 
 Feel free to contribute any cogs or features you would like to see. Open a pull request or shoot me a dm on Discord: `_morganite`.
