@@ -59,13 +59,13 @@ Just run `python bot.py`
 
 To install the App onto your Discord profile (you need this before you can use the commands), go to `https://discord.com/developers/applications/[YOUR_APP_ID]/installation`. There, make sure ✅ User Install and ⬛ Guild Install. This way, you can only user install it. Make sure the `Install Link` is set to `Discord Provided Link`. From there, copy the link and paste it in another tab.
 
-### 5. Upload/copy (animated) emojis
+### 6. Upload/copy (animated) emojis
 
 You can choose to either upload the emojis directly on your application page `https://discord.com/developers/applications/[YOUR_APP_ID]/emojis` or you can choose to upload them directly in Discord with `/addemoji [FILE] [Name]`.
 
 To get them from a server directly Use the `/stealemoji ID NEWNAME` for the quickest copies. You can copy the emoji ID from Discord emoji panel and rightclicking, copy Emoji ID. Then give it a name and voila. If you want, you can also fill in the full emoji name e.g. <:test:1234567890123> and it will copy the name too.
 
-### 6. Commands
+### 7. Commands
 
 You can now use the emoji commands. Most important ones are: `/elist` (list of all emojis), `/search` (to search in your emojis), `/e [msg]` (send message with emojis, e.g. `/e [Hi there ;wave;]`). Replace all Enters with `\n`, all the rest is like a normal message. And `/ed` (edit the last message send).
 
