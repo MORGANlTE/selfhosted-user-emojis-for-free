@@ -41,7 +41,7 @@ Copy the `.default.env` file, rename it to `.env` and fill in the file:
 ```js
 TOKEN=YOUR_DC_BOT_TOKEN (never share this!)
 APP_ID=YOUR_APP_ID
-OWNER_IDs = 123456789012345, 1234567898765
+OWNER_IDs=123456789012345, 1234567898765
 
 ENABLE_EMOJI_COMMANDS=true
 ENABLE_FUN_COMMANDS=false
