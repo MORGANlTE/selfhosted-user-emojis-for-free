@@ -1,4 +1,5 @@
 import base64
+import io
 import json
 import os
 import re
@@ -240,10 +241,6 @@ class EmojiCog(commands.Cog):
     def save(self):
         with open(EMOJI_FILE, "w", encoding="utf8") as f:
             json.dump(self.emotes, f, indent=2)
-        
-        # Trigger async sync task to update Gist on save
-        if hasattr(self.bot, "loop") and self.bot.loop.is_running():
-            self.bot.loop.create_task(self.sync_to_gist())
 
     async def sync_to_gist(self):
         """Pushes the current formatted emotes list directly to GitHub Gist."""
@@ -312,6 +309,21 @@ class EmojiCog(commands.Cog):
 
         return PAT.sub(replace, txt)
 
+    def _build_formatted_emojis(self) -> list[dict]:
+        formatted_emojis = []
+        for name, tag in self.emotes.items():
+            match = re.match(r"<(a?):([^:]+):(\d+)>", tag)
+            if not match:
+                continue
+            formatted_emojis.append(
+                {
+                    "id": match.group(3),
+                    "name": name,
+                    "animated": bool(match.group(1)),
+                }
+            )
+        return formatted_emojis
+
     @commands.Cog.listener()
     async def on_ready(self):
         try:
@@ -345,7 +357,8 @@ class EmojiCog(commands.Cog):
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.command(name="ed", description="Edit your last sent emote message")
-    async def ed(self, inter: discord.Interaction):
+    @app_commands.describe(text="The new text (bypasses modal if provided)")
+    async def ed(self, inter: discord.Interaction, text: Optional[str] = None):
         user_data = self.last_messages.get(inter.user.id)
 
         if not user_data:
@@ -355,6 +368,22 @@ class EmojiCog(commands.Cog):
             )
             return
 
+        # If Vencord provides the text directly, skip the modal!
+        if text is not None:
+            await inter.response.defer(ephemeral=True)
+            processed_text = self.repl(text.replace("\\n", "\n"))
+            
+            if user_data["reply_user"]:
+                processed_text += f"\n-# Replying to {user_data['reply_user'].mention}"
+
+            await user_data["message"].edit(content=processed_text)
+            
+            # Update the cached raw text so future edits work
+            self.last_messages[inter.user.id]["raw_text"] = text
+            await inter.followup.send("✅ Message edited successfully!", ephemeral=True)
+            return
+
+        # Fallback: If no text is provided (e.g., using it on mobile), show the modal
         modal = EditMessageModal(
             cog=self,
             message=user_data["message"],
@@ -589,28 +618,51 @@ class EmojiCog(commands.Cog):
             )
             return
 
-        async with aiohttp.ClientSession() as session:
-            cdn_url = f"https://cdn.discordapp.com/emojis/{emoji_id}.webp?animated=true&quality=lossless"
-            async with session.get(cdn_url) as resp:
-                if resp.status != 200:
-                    await inter.followup.send(
-                        f"Failed to fetch emoji image from CDN (Status {resp.status}).",
-                        ephemeral=True,
-                    )
-                    return
-                image_bytes = await resp.read()
+        name = (new_name or extracted_name or f"emoji_{emoji_id}").strip().replace(" ", "_").replace(";", "").replace(":", "")
+        if not re.fullmatch(r"[A-Za-z0-9_]{2,32}", name):
+            await inter.followup.send(
+                "❌ Invalid emoji name. Use 2-32 chars: letters, numbers, underscore.",
+                ephemeral=True,
+            )
+            return
+        if name in self.emotes:
+            await inter.followup.send(
+                f"❌ `;{name};` already exists. Choose another name.",
+                ephemeral=True,
+            )
+            return
 
-        name = new_name or extracted_name or f"emoji_{emoji_id}"
+        parsed_animated = bool(match_full and match_full.group(1) == "a")
+        emoji_extensions = ["gif", "webp"] if parsed_animated else ["webp", "png", "gif"]
+        image_bytes = None
+        mime_ext = None
+
+        async with aiohttp.ClientSession() as session:
+            for ext in emoji_extensions:
+                cdn_url = f"https://cdn.discordapp.com/emojis/{emoji_id}.{ext}?quality=lossless"
+                async with session.get(cdn_url) as resp:
+                    if resp.status == 200:
+                        image_bytes = await resp.read()
+                        mime_ext = ext
+                        break
+
+        if image_bytes is None or mime_ext is None:
+            await inter.followup.send(
+                "❌ Failed to fetch emoji image from CDN.",
+                ephemeral=True,
+            )
+            return
+
         payload = {
             "name": name,
-            "image": "data:image/webp;base64," + base64.b64encode(image_bytes).decode(),
+            "image": f"data:image/{mime_ext};base64," + base64.b64encode(image_bytes).decode(),
         }
 
         status, data = await DiscordAPIHelper.request("POST", "/emojis", payload)
 
-        if "id" not in data:
+        if status not in (200, 201) or "id" not in data:
             await inter.followup.send(
-                f"Upload failed.\n```{data}```", ephemeral=True
+                f"❌ Upload failed (Status {status}).\n```{data}```", ephemeral=True
             )
             return
 
@@ -632,6 +684,32 @@ class EmojiCog(commands.Cog):
             f"Successfully added {emoji_string}\nUse it with `;{name};`",
             view=view,
             ephemeral=True
+        )
+
+    # /esync
+    @app_commands.command(
+    name="esync",
+    description="Return your emoji cache as an ephemeral JSON file.",
+    )
+    async def esync(self, inter: discord.Interaction):
+        await inter.response.defer(ephemeral=True)
+
+        formatted_emojis = self._build_formatted_emojis()
+        if not formatted_emojis:
+            await inter.followup.send(
+                "❌ No emojis currently stored in local library.",
+                ephemeral=True,
+            )
+            return
+
+        payload = json.dumps(formatted_emojis, indent=2)
+        file_bytes = io.BytesIO(payload.encode("utf-8"))
+        discord_file = discord.File(fp=file_bytes, filename="emojis.json")
+
+        await inter.followup.send(
+            content=f"✅ Exported **{len(formatted_emojis)}** emojis.",
+            file=discord_file,
+            ephemeral=True,
         )
 
     # /deleteemoji
@@ -706,18 +784,7 @@ class EmojiCog(commands.Cog):
             )
             return
 
-        formatted_emojis = []
-        for name, tag in self.emotes.items():
-            # Parse <a:name:id> or <:name:id>
-            match = re.match(r"<(a?):([^:]+):(\d+)>", tag)
-            if match:
-                is_animated = bool(match.group(1))
-                emoji_id = match.group(3)
-                formatted_emojis.append({
-                    "id": emoji_id,
-                    "name": name,
-                    "animated": is_animated
-                })
+        formatted_emojis = self._build_formatted_emojis()
 
         cache_json = json.dumps(formatted_emojis)
 
