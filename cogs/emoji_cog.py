@@ -695,6 +695,8 @@ class EmojiCog(commands.Cog):
         description="Return your emoji cache as a JSON file for plugin sync.",
     )
     async def esync(self, inter: discord.Interaction):
+        # refresh emojis before syncing
+        await self.refresh_emojis()
         formatted_emojis = self._build_formatted_emojis()
         if not formatted_emojis:
             await inter.response.send_message(
@@ -705,10 +707,10 @@ class EmojiCog(commands.Cog):
 
         payload = json.dumps(formatted_emojis, indent=2)
 
-        # 1) Minimal ephemeral ack (user feedback)
+        # Ephemeral ack
         await inter.response.send_message("✅ Syncing emoji cache…", ephemeral=True)
 
-        # 2) Send a normal DM message with attachment (plugin can read this reliably)
+        # Normal DM message with attachment (plugin can read this reliably)
         dm_target = inter.channel
         if dm_target is None:
             dm_target = await inter.user.create_dm()
@@ -717,7 +719,7 @@ class EmojiCog(commands.Cog):
         discord_file = discord.File(fp=file_bytes, filename="emojis.json")
         sync_msg = await dm_target.send(content=".", file=discord_file)
 
-        # 3) Optional cleanup: delete after short delay (plugin should parse quickly)
+        # Cleanup fallback in case plugin can't delete it
         async def _cleanup():
             try:
                 await asyncio.sleep(15)
