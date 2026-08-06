@@ -1,20 +1,69 @@
 import base64
+import io
 import json
 import os
 import re
+import secrets
+import time
 import traceback
 from typing import Optional, List
 import aiohttp
 import discord
 from discord import app_commands
 from discord.ext import commands
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from helpers.checks import restrict_to_owner
 from helpers.pagination import Pagination
 from helpers.api import DiscordAPIHelper
 
 EMOJI_FILE = "emojis.json"
+SYNC_STATE_FILE = "sync_state.json"
 PAT = re.compile(r";([A-Za-z0-9_]+);")
+
+
+def _get_owner_id() -> Optional[int]:
+    """First ID in OWNER_IDs — the DM sync target. Reuses the same env var
+    the owner-restriction check already relies on, so no new setup is needed."""
+    raw = os.getenv("OWNER_IDs", "")
+    for chunk in raw.split(","):
+        chunk = chunk.strip()
+        if chunk.isdigit():
+            return int(chunk)
+    return None
+
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GIST_ID = os.getenv("GIST_ID")
+
+# Optional: base64-encoded 32-byte (256-bit) key used to encrypt the emoji
+# cache before it is written to the Gist. Generate one with:
+#   python -c "import secrets, base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
+# Put the result in .env as EMOJI_ENCRYPTION_KEY, then paste the SAME string
+# into the Vencord plugin's ENCRYPTION_KEY constant. If this is left unset,
+# the bot falls back to publishing the Gist in plaintext.
+EMOJI_ENCRYPTION_KEY_RAW = os.getenv("EMOJI_ENCRYPTION_KEY")
+_ENCRYPTION_WARNED = False
+
+
+def _get_aesgcm() -> Optional[AESGCM]:
+    """Returns an AESGCM instance built from EMOJI_ENCRYPTION_KEY, or None if unset/invalid."""
+    global _ENCRYPTION_WARNED
+    if not EMOJI_ENCRYPTION_KEY_RAW:
+        if not _ENCRYPTION_WARNED:
+            print("[!] EMOJI_ENCRYPTION_KEY not set — Gist will be synced in PLAINTEXT. "
+                  "See emoji_cog.py header for how to generate one.")
+            _ENCRYPTION_WARNED = True
+        return None
+    try:
+        key_bytes = base64.b64decode(EMOJI_ENCRYPTION_KEY_RAW)
+    except Exception:
+        print("[!] EMOJI_ENCRYPTION_KEY is not valid base64 — falling back to plaintext sync.")
+        return None
+    if len(key_bytes) != 32:
+        print(f"[!] EMOJI_ENCRYPTION_KEY must decode to 32 bytes (got {len(key_bytes)}) — "
+              "falling back to plaintext sync.")
+        return None
+    return AESGCM(key_bytes)
 
 class RenameEmojiModal(discord.ui.Modal, title="Rename Emoji"):
     def __init__(self, cog: "EmojiCog", emoji_id: str, old_name: str, is_animated: bool):
@@ -225,12 +274,32 @@ class EmojiCog(commands.Cog):
         self.bot = bot
         self.emotes = {}
         self.last_messages = {}
+        self.last_channel_id: Optional[int] = None
+        self.sync_state = self._load_sync_state()
         self.load()
 
+    def _load_sync_state(self) -> dict:
+        if os.path.exists(SYNC_STATE_FILE):
+            try:
+                with open(SYNC_STATE_FILE, "r", encoding="utf8") as f:
+                    return json.load(f)
+            except Exception:
+                return {}
+        return {}
+
+    def _save_sync_state(self):
+        with open(SYNC_STATE_FILE, "w", encoding="utf8") as f:
+            json.dump(self.sync_state, f, indent=2)
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction: discord.Interaction):
+        # Remember the most recent channel the owner talked to the bot in
+        # (almost always their DM with the app) so background syncs after
+        # /addemoji, /stealemoji, etc. know where to post without asking.
+        if interaction.channel_id:
+            self.last_channel_id = interaction.channel_id
+
     def load(self):
-        if not os.path.exists(EMOJI_FILE):
-            with open(EMOJI_FILE, "w", encoding="utf8") as f:
-                json.dump({}, f, indent=2)
         if os.path.exists(EMOJI_FILE):
             with open(EMOJI_FILE, "r", encoding="utf8") as f:
                 self.emotes = json.load(f)
@@ -240,6 +309,141 @@ class EmojiCog(commands.Cog):
     def save(self):
         with open(EMOJI_FILE, "w", encoding="utf8") as f:
             json.dump(self.emotes, f, indent=2)
+
+        # Primary sync path: push the cache to a private DM the Vencord plugin
+        # can read. No external account/token needed on either side.
+        if hasattr(self.bot, "loop") and self.bot.loop.is_running():
+            self.bot.loop.create_task(self.sync_to_channel())
+
+            # Optional legacy path: also mirror to a GitHub Gist, only if the
+            # user has explicitly opted into that by setting GITHUB_TOKEN/GIST_ID.
+            if GITHUB_TOKEN and GIST_ID:
+                self.bot.loop.create_task(self.sync_to_gist())
+
+    def _build_emoji_payload(self) -> list:
+        formatted = []
+        for name, tag in self.emotes.items():
+            match = re.match(r"<(a?):([^:]+):(\d+)>", tag)
+            if match:
+                formatted.append({
+                    "id": match.group(3),
+                    "name": name,
+                    "animated": bool(match.group(1))
+                })
+        return formatted
+
+    async def sync_to_channel(self, force: bool = False) -> Optional[discord.Message]:
+        """Publishes the emoji cache as a JSON attachment in a private channel
+        (normally the owner's DM with this app) that the Vencord plugin reads
+        via /users/@me/channels + /channels/{id}/messages. Edits the previous
+        sync message in place instead of spamming a new one every time."""
+        target_channel = None
+
+        # Prefer the channel the owner most recently interacted in.
+        if self.last_channel_id:
+            target_channel = self.bot.get_channel(self.last_channel_id)
+            if target_channel is None:
+                try:
+                    target_channel = await self.bot.fetch_channel(self.last_channel_id)
+                except Exception:
+                    target_channel = None
+
+        # Fall back to (re)opening the owner's DM directly — covers the very
+        # first sync, before any interaction has been recorded yet.
+        if target_channel is None:
+            owner_id = _get_owner_id()
+            if not owner_id:
+                return None
+            try:
+                owner_user = self.bot.get_user(owner_id) or await self.bot.fetch_user(owner_id)
+                target_channel = owner_user.dm_channel or await owner_user.create_dm()
+            except Exception as e:
+                print(f"[!] Could not open DM with owner for sync: {e}")
+                return None
+
+        formatted_emojis = self._build_emoji_payload()
+        payload_bytes = json.dumps(formatted_emojis).encode("utf-8")
+        status_line = (
+            f"EMOJI_CACHE_V1 · {len(formatted_emojis)} emoji(s) · "
+            f"updated <t:{int(time.time())}:R>"
+        )
+
+        try:
+            existing_message = None
+            tracked_id = self.sync_state.get("dm_message_id")
+            if tracked_id:
+                try:
+                    existing_message = await target_channel.fetch_message(tracked_id)
+                except (discord.NotFound, discord.Forbidden):
+                    existing_message = None
+
+            file = discord.File(io.BytesIO(payload_bytes), filename="emojis.json")
+
+            if existing_message:
+                message = await existing_message.edit(content=status_line, attachments=[file])
+            else:
+                message = await target_channel.send(content=status_line, file=file)
+                self.sync_state["dm_message_id"] = message.id
+                self.sync_state["channel_id"] = target_channel.id
+                self._save_sync_state()
+
+            print(f"[+] Synced {len(formatted_emojis)} emojis to channel {target_channel.id}.")
+            return message
+        except Exception as e:
+            print(f"[!] Channel sync failed: {e}")
+            return None
+
+    async def sync_to_gist(self):
+        """Optional legacy path: pushes the emoji cache to a GitHub Gist too.
+        Only runs if GITHUB_TOKEN/GIST_ID are set — the DM sync in
+        sync_to_channel() is the recommended path and needs neither."""
+        if not GITHUB_TOKEN or not GIST_ID:
+            return
+
+        formatted_emojis = self._build_emoji_payload()
+        raw_json = json.dumps(formatted_emojis).encode("utf-8")
+
+        aesgcm = _get_aesgcm()
+        if aesgcm:
+            # 12-byte nonce is the standard/recommended size for AES-GCM.
+            # NEVER reuse a nonce with the same key — generate a fresh one every sync.
+            nonce = secrets.token_bytes(12)
+            ciphertext = aesgcm.encrypt(nonce, raw_json, None)
+            blob_b64 = base64.b64encode(nonce + ciphertext).decode()
+            file_content = json.dumps({
+                "v": 1,
+                "enc": "aes-256-gcm",
+                "data": blob_b64,
+            }, indent=2)
+        else:
+            file_content = json.dumps(formatted_emojis, indent=2)
+
+        url = f"https://api.github.com/gists/{GIST_ID}"
+        headers = {
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "MyDiscordBot/1.0",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        payload = {
+            "files": {
+                "emojis.json": {
+                    "content": file_content
+                }
+            }
+        }
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.patch(url, json=payload, headers=headers) as resp:
+                    if resp.status == 200:
+                        state = "encrypted" if aesgcm else "plaintext"
+                        print(f"[+] Synced {len(formatted_emojis)} emojis to GitHub Gist ({state}).")
+                    else:
+                        text = await resp.text()
+                        print(f"[!] Gist sync failed ({resp.status}): {text}")
+        except Exception as e:
+            print(f"[!] Gist sync exception: {e}")
 
     async def refresh_emojis(self):
         status, data = await DiscordAPIHelper.request("GET", "/emojis")
@@ -254,7 +458,6 @@ class EmojiCog(commands.Cog):
                 f"<{'a' if e.get('animated') else ''}:{e['name']}:{e['id']}>"
             )
         self.save()
-        print(f"[+] Auto-synced {len(self.emotes)} application emojis from Discord API.")
 
     def repl(self, txt: str) -> str:
         def replace(match):
@@ -662,28 +865,22 @@ class EmojiCog(commands.Cog):
             )
             return
 
-        formatted_emojis = []
-        for name, tag in self.emotes.items():
-            # Parse <a:name:id> or <:name:id>
-            match = re.match(r"<(a?):([^:]+):(\d+)>", tag)
-            if match:
-                is_animated = bool(match.group(1))
-                emoji_id = match.group(3)
-                formatted_emojis.append({
-                    "id": emoji_id,
-                    "name": name,
-                    "animated": is_animated
-                })
+        # last_channel_id is already set by on_interaction for this very
+        # interaction, so this both bootstraps the first-ever sync and lets
+        # you force a refresh on demand.
+        message = await self.sync_to_channel(force=True)
 
-        cache_json = json.dumps(formatted_emojis)
-
-        # Send public payload message in channel that the plugin can read
-        await inter.channel.send(
-            f"```json\nEMOJI_CACHE:{cache_json}\n```"
-        )
+        if message is None:
+            await inter.followup.send(
+                "❌ Sync failed — check the bot console for details.",
+                ephemeral=True,
+            )
+            return
 
         await inter.followup.send(
-            f"✅ Successfully published cache containing **{len(formatted_emojis)}** emojis to this channel!",
+            f"✅ Synced **{len(self.emotes)}** emojis to this channel. "
+            "The Vencord plugin will pick this up automatically as long as "
+            "your `appId` is set in its settings.",
             ephemeral=True,
         )
 
