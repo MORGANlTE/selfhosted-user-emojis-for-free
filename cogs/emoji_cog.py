@@ -707,7 +707,6 @@ class EmojiCog(commands.Cog):
         discord_file = discord.File(fp=file_bytes, filename="emojis.json")
 
         await inter.followup.send(
-            content=f"✅ Exported **{len(formatted_emojis)}** emojis.",
             file=discord_file,
             ephemeral=True,
         )
