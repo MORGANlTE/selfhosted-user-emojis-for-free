@@ -9,6 +9,7 @@ import aiohttp
 import discord
 from discord import app_commands
 from discord.ext import commands
+import asyncio
 
 from helpers.checks import restrict_to_owner
 from helpers.pagination import Pagination
@@ -687,30 +688,46 @@ class EmojiCog(commands.Cog):
         )
 
     # /esync
+    @app_commands.allowed_installs(users=True, guilds=False)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.command(
-    name="esync",
-    description="Return your emoji cache as an ephemeral JSON file.",
+        name="esync",
+        description="Return your emoji cache as a JSON file for plugin sync.",
     )
     async def esync(self, inter: discord.Interaction):
-        await inter.response.defer(ephemeral=True)
-
         formatted_emojis = self._build_formatted_emojis()
         if not formatted_emojis:
-            await inter.followup.send(
+            await inter.response.send_message(
                 "❌ No emojis currently stored in local library.",
                 ephemeral=True,
             )
             return
 
         payload = json.dumps(formatted_emojis, indent=2)
+
+        # 1) Minimal ephemeral ack (user feedback)
+        await inter.response.send_message("✅ Syncing emoji cache…", ephemeral=True)
+
+        # 2) Send a normal DM message with attachment (plugin can read this reliably)
+        dm_target = inter.channel
+        if dm_target is None:
+            dm_target = await inter.user.create_dm()
+
         file_bytes = io.BytesIO(payload.encode("utf-8"))
         discord_file = discord.File(fp=file_bytes, filename="emojis.json")
+        sync_msg = await dm_target.send(content=".", file=discord_file)
 
-        await inter.followup.send(
-            file=discord_file,
-            ephemeral=True,
-        )
+        # 3) Optional cleanup: delete after short delay (plugin should parse quickly)
+        async def _cleanup():
+            try:
+                await asyncio.sleep(15)
+                await sync_msg.delete()
+            except Exception:
+                pass
 
+        if hasattr(self.bot, "loop") and self.bot.loop.is_running():
+            self.bot.loop.create_task(_cleanup())
+            
     # /deleteemoji
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
