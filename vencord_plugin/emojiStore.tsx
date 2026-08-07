@@ -44,7 +44,7 @@ export function CustomEmojiStorePopout({
         <div style={{
             width: "320px",
             maxHeight: "400px",
-            backgroundColor: "var(--background-secondary)",
+            backgroundColor: "var(--background-floating)",
             border: "1px solid var(--background-tertiary)",
             borderRadius: "8px",
             boxShadow: "0 8px 16px rgba(0,0,0,0.24)",
@@ -91,7 +91,7 @@ export function CustomEmojiStorePopout({
             >
                 {filtered.map((emoji: any) => {
                     // Try webp first, with fallback to png/gif logic handled dynamically or via onError
-                    const url = `https://cdn.discordapp.com/emojis/${emoji.id}.${emoji.animated ? "gif" : "webp"}?size=48&quality=lossless`;
+                    const url = `https://cdn.discordapp.com/emojis/${emoji.id}.${emoji.animated ? "gif" : "png"}?size=48&quality=lossless`;
                     return (
                         <div
                             key={emoji.id}
@@ -121,12 +121,6 @@ export function CustomEmojiStorePopout({
                             <img
                                 src={url}
                                 alt={emoji.name}
-                                onError={(e: any) => {
-                                    // Fallback for broken links: try .png if .webp fails
-                                    if (e.target.src.includes(".webp")) {
-                                        e.target.src = `https://cdn.discordapp.com/emojis/${emoji.id}.png?size=48&quality=lossless`;
-                                    }
-                                }}
                                 style={{
                                     width: "32px",
                                     height: "32px",

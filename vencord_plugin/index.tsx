@@ -150,7 +150,7 @@ const pluginStore = {
     },
 
     buildEmojiObj(emoji: AppEmoji) {
-        const ext = emoji.animated ? "gif" : "webp";
+        const ext = emoji.animated ? "gif" : "png";
         return {
             id: emoji.id,
             name: emoji.name,
@@ -577,6 +577,18 @@ export default definePlugin({
                 return orig.apply(thisObj, args);
             },
         );
+
+        if (EmojiStore.isEmojiUsable) {
+            patcherManager.instead(
+                EmojiStore,
+                "isEmojiUsable",
+                (args, orig, thisObj) => {
+                    const [emoji] = args;
+                    if (emoji && pluginStore.customEmojiObjectsById.has(emoji.id)) return true;
+                    return orig.apply(thisObj, args);
+                }
+            );
+        }
 
         // --- MESSAGE DISPATCH INTERCEPTOR ---
         patcherManager.instead(
