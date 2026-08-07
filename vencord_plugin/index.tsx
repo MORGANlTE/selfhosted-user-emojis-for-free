@@ -1,5 +1,7 @@
 import React from "react";
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
+import { Popout, useRef, useState } from "@webpack/common";
+import { CustomEmojiStorePopout } from "./emojiStore";
 import { definePluginSettings } from "@api/Settings";
 import definePlugin, { OptionType } from "@utils/types";
 import { findStore } from "@webpack";
@@ -14,8 +16,7 @@ import {
     createExpressionPickerPatch,
     createMessageContextPatch,
 } from "./contextMenu";
-import { openCustomEmojiStore } from "./emojiStore";
-import { openModal } from "@webpack/common";
+
 import type {
     AppEmoji,
     CommandMeta,
@@ -460,15 +461,41 @@ const CustomEmojiStoreIcon = () => (
 );
 
 const CustomEmojiStoreButton: ChatBarButtonFactory = ({ isAnyChat }) => {
+    const buttonRef = useRef(null);
+    const [isOpen, setIsOpen] = useState(false);
+
     if (!isAnyChat) return null;
 
     return (
-        <ChatBarButton
-            tooltip="Open Custom Emoji Store"
-            onClick={() => openCustomEmojiStore(pluginStore)}
+        <Popout
+            shouldShow={isOpen}
+            position="top"
+            align="right"
+            onRequestClose={() => setIsOpen(false)}
+            targetElementRef={buttonRef}
+            renderPopout={({ closePopout }) => (
+                <CustomEmojiStorePopout onClose={() => {
+                    closePopout();
+                    setIsOpen(false);
+                }} pluginStore={pluginStore} />
+            )}
         >
-            <CustomEmojiStoreIcon />
-        </ChatBarButton>
+            {popoutProps => (
+                <div ref={buttonRef} onClick={() => setIsOpen(!isOpen)}>
+                    <ChatBarButton
+                        tooltip="Open Custom Emoji Store"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsOpen(!isOpen);
+                        }}
+                        {...popoutProps}
+                    >
+                        <CustomEmojiStoreIcon />
+                    </ChatBarButton>
+                </div>
+            )}
+        </Popout>
     );
 };
 
@@ -495,9 +522,7 @@ export default definePlugin({
 
     async start() {
         EmojiStore = findStore("EmojiStore");
-        if (!openModal) {
-            console.error("Vencord openModal missing!");
-        }
+
         ReplyStore = findStore("PendingReplyStore");
         PendingReplyActions = silentlyFindPendingReplyActions();
 
