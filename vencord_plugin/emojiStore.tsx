@@ -14,8 +14,8 @@ export function CustomEmojiStorePopout({
     );
 
     const handleSelect = (emoji: any) => {
-        // We use the exact tag your bot expects!
-        const textToInsert = `:${emoji.name}: `;
+        // Insert the raw format. Discord parses raw <a:name:id> strings into custom emoji nodes in the textarea!
+        const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
 
         try {
             if (
@@ -42,8 +42,8 @@ export function CustomEmojiStorePopout({
 
     return (
         <div style={{
-            width: "320px",
-            maxHeight: "400px",
+            width: "350px",
+            height: "400px",
             backgroundImage: "url(https://i.pinimg.com/236x/2c/cd/9d/2ccd9d9501e6ecbcca340a868ddd1184.jpg)", backgroundSize: "cover",
             border: "1px solid var(--background-tertiary)",
             borderRadius: "8px",
@@ -129,7 +129,7 @@ export function CustomEmojiStorePopout({
                                             label="Rename Emoji"
                                             action={() => {
                                                 onClose();
-                                                ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", { plainText: `/renameemoji oldname:${emoji.name} newname:` });
+                                                ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", { plainText: `/renameemoji old_name:${emoji.name} new_name:` });
                                             }}
                                         />
                                         <Menu.MenuItem
@@ -147,7 +147,9 @@ export function CustomEmojiStorePopout({
                             style={{
                                 cursor: "pointer",
                                 borderRadius: "4px",
-                                padding: "4px",
+                                padding: "0", // Removed default padding so it stays static
+                                width: "40px",
+                                height: "40px",
                                 display: "flex",
                                 flexDirection: "column",
                                 justifyContent: "center",
@@ -185,16 +187,16 @@ export function CustomEmojiStorePopout({
                             <span style={{
                                 opacity: 0,
                                 position: "absolute",
-                                bottom: "-15px",
+                                bottom: "-20px",
                                 fontSize: "10px",
                                 color: "#fff",
                                 whiteSpace: "nowrap",
                                 pointerEvents: "none",
                                 transition: "opacity 0.1s ease",
-                                background: "rgba(0,0,0,0.7)",
+                                background: "rgba(0,0,0,0.8)",
                                 padding: "2px 4px",
                                 borderRadius: "4px",
-                                zIndex: 10
+                                zIndex: 9999
                             }}>
                                 {emoji.name}
                             </span>
