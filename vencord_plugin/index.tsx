@@ -7,6 +7,7 @@ import definePlugin, { OptionType } from "@utils/types";
 import { findStore } from "@webpack";
 import {
     AuthenticationStore,
+    GuildStore,
     MessageActions,
     RestAPI,
     SelectedGuildStore,
@@ -170,6 +171,7 @@ const pluginStore = {
             isLocked: false,
             locked: false,
             disabled: false,
+            guildId: "UserAppEmojis",
         };
     },
 
@@ -445,7 +447,7 @@ function silentlyFindPendingReplyActions() {
 const emojiRegex =
     /<a?:([A-Za-z0-9_]+):(\d+)>|:([A-Za-z0-9_]+):|;([A-Za-z0-9_]+);/g;
 
-const CustomEmojiStoreIcon = () => (
+const CustomEmojiStoreIcon = ({ isHovered }: { isHovered?: boolean }) => (
     <div
         style={{
             display: "flex",
@@ -454,6 +456,8 @@ const CustomEmojiStoreIcon = () => (
             fontSize: "22px",
             lineHeight: "22px",
             height: "100%",
+            filter: isHovered ? "grayscale(0%)" : "grayscale(100%)",
+            transition: "filter 0.2s ease"
         }}
     >
         💎
@@ -480,21 +484,29 @@ const CustomEmojiStoreButton: ChatBarButtonFactory = ({ isAnyChat }) => {
                 }} pluginStore={pluginStore} />
             )}
         >
-            {popoutProps => (
-                <div ref={buttonRef} onClick={() => setIsOpen(!isOpen)}>
-                    <ChatBarButton
-                        tooltip="Open Custom Emoji Store"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setIsOpen(!isOpen);
-                        }}
-                        {...popoutProps}
+            {popoutProps => {
+                const [isHovered, setIsHovered] = useState(false);
+                return (
+                    <div
+                        ref={buttonRef}
+                        onClick={() => setIsOpen(!isOpen)}
+                        onMouseEnter={() => setIsHovered(true)}
+                        onMouseLeave={() => setIsHovered(false)}
                     >
-                        <CustomEmojiStoreIcon />
-                    </ChatBarButton>
-                </div>
-            )}
+                        <ChatBarButton
+                            tooltip="Open Custom Emoji Store"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsOpen(!isOpen);
+                            }}
+                            {...popoutProps}
+                        >
+                            <CustomEmojiStoreIcon isHovered={isHovered} />
+                        </ChatBarButton>
+                    </div>
+                );
+            }}
         </Popout>
     );
 };
@@ -522,6 +534,17 @@ export default definePlugin({
 
     async start() {
         EmojiStore = findStore("EmojiStore");
+        patcherManager.instead(
+            GuildStore,
+            "getGuild",
+            (args, orig, thisObj) => {
+                const [id] = args;
+                if (id === "UserAppEmojis") {
+                    return { id: "UserAppEmojis", name: "User App Plugin", getIconURL: () => null };
+                }
+                return orig.apply(thisObj, args);
+            }
+        );
 
         ReplyStore = findStore("PendingReplyStore");
         PendingReplyActions = silentlyFindPendingReplyActions();
