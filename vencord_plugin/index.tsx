@@ -15,6 +15,7 @@ import {
     createMessageContextPatch,
 } from "./contextMenu";
 import { openCustomEmojiStore } from "./emojiStore";
+import { openModal } from "@webpack/common";
 import type {
     AppEmoji,
     CommandMeta,
@@ -494,6 +495,9 @@ export default definePlugin({
 
     async start() {
         EmojiStore = findStore("EmojiStore");
+        if (!openModal) {
+            console.error("Vencord openModal missing!");
+        }
         ReplyStore = findStore("PendingReplyStore");
         PendingReplyActions = silentlyFindPendingReplyActions();
 

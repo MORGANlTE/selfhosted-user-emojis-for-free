@@ -1,13 +1,6 @@
-import { React, ComponentDispatch, Toasts, showToast } from "@webpack/common";
+import { React, ComponentDispatch, Toasts, showToast, openModal, Modal } from "@webpack/common";
 import { findByProps } from "@webpack";
 
-const ModalApi = findByProps("openModal", "closeModal");
-const ModalComponents = findByProps(
-    "ModalRoot",
-    "ModalHeader",
-    "ModalContent",
-    "ModalCloseButton",
-);
 
 export function CustomEmojiStoreModal({
     transitionState,
@@ -51,65 +44,14 @@ export function CustomEmojiStoreModal({
         onClose();
     };
 
-    // Fallbacks just in case Discord updates their UI names
-    const Root = ModalComponents?.ModalRoot || "div";
-    const Header = ModalComponents?.ModalHeader || "div";
-    const Content = ModalComponents?.ModalContent || "div";
-    const CloseButton =
-        ModalComponents?.ModalCloseButton ||
-        (({ onClick }: any) => (
-            <button
-                onClick={onClick}
-                style={{
-                    background: "none",
-                    border: "none",
-                    color: "white",
-                    cursor: "pointer",
-                    fontSize: "16px",
-                }}
-            >
-                X
-            </button>
-        ));
-
     return (
-        <Root
+        <Modal
             transitionState={transitionState}
+            onClose={onClose}
+            title="💎 Custom Emoji Store"
             size="medium"
-            style={{
-                backgroundColor: "var(--background-primary)",
-                borderRadius: "8px",
-                border: "1px solid var(--background-tertiary)",
-                overflow: "hidden",
-            }}
         >
-            <Header
-                separator={false}
-                style={{ backgroundColor: "var(--background-secondary)" }}
-            >
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        width: "100%",
-                        alignItems: "center",
-                        padding: "16px",
-                    }}
-                >
-                    <h2
-                        style={{
-                            color: "var(--header-primary)",
-                            fontSize: "20px",
-                            fontWeight: "bold",
-                            margin: 0,
-                        }}
-                    >
-                        💎 Custom Emoji Store
-                    </h2>
-                    <CloseButton onClick={onClose} />
-                </div>
-            </Header>
-            <Content style={{ padding: "16px" }}>
+            <div style={{ padding: "16px" }}>
                 <input
                     type="text"
                     placeholder="Search your custom emojis..."
@@ -159,13 +101,13 @@ export function CustomEmojiStoreModal({
                                     transition:
                                         "transform 0.1s ease, background-color 0.1s ease",
                                 }}
-                                onMouseEnter={(e) => {
+                                onMouseEnter={(e: any) => {
                                     e.currentTarget.style.transform =
                                         "scale(1.1)";
                                     e.currentTarget.style.backgroundColor =
                                         "var(--background-modifier-hover)";
                                 }}
-                                onMouseLeave={(e) => {
+                                onMouseLeave={(e: any) => {
                                     e.currentTarget.style.transform =
                                         "scale(1)";
                                     e.currentTarget.style.backgroundColor =
@@ -199,14 +141,14 @@ export function CustomEmojiStoreModal({
                         </div>
                     )}
                 </div>
-            </Content>
-        </Root>
+            </div>
+        </Modal>
     );
 }
 
 export function openCustomEmojiStore(pluginStore: any) {
-    if (ModalApi && ModalApi.openModal) {
-        ModalApi.openModal((props: any) => (
+    if (openModal) {
+        openModal((props: any) => (
             <CustomEmojiStoreModal {...props} pluginStore={pluginStore} />
         ));
     } else {
