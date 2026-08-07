@@ -1,4 +1,5 @@
 import { React, ComponentDispatch, Toasts, showToast, openModal, Modal, ContextMenuApi, Menu, Button } from "@webpack/common";
+import { insertTextIntoChatInputBox } from "@utils/discord";
 import { findByProps } from "@webpack";
 
 
@@ -14,25 +15,12 @@ export function CustomEmojiStorePopout({
     );
 
     const handleSelect = (emoji: any) => {
-        // Insert the raw format. Discord parses raw <a:name:id> strings into custom emoji nodes in the textarea!
-        const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
-
         try {
-            if (
-                ComponentDispatch &&
-                ComponentDispatch.dispatchToLastSubscribed
-            ) {
-                ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", {
-                    plainText: textToInsert,
-                });
-            } else if (ComponentDispatch && ComponentDispatch.dispatch) {
-                ComponentDispatch.dispatch("INSERT_TEXT", {
-                    plainText: textToInsert,
-                });
-            } else {
-                throw new Error("No Dispatcher found");
-            }
+            // insertTextIntoChatInputBox naturally parses the text if it corresponds to an ID in EmojiStore
+            const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}> `;
+            insertTextIntoChatInputBox(textToInsert);
         } catch (e) {
+            const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
             navigator.clipboard.writeText(textToInsert);
             showToast("Copied to clipboard!", Toasts.Type.SUCCESS);
         }
@@ -129,7 +117,9 @@ export function CustomEmojiStorePopout({
                                             label="Rename Emoji"
                                             action={() => {
                                                 onClose();
-                                                ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", { plainText: `/renameemoji old_name:${emoji.name} new_name:` });
+                                                // Using insertTextIntoChatInputBox will automatically trigger Discord's draft parser.
+                                                // By typing the text naturally it will often trigger slash command completion.
+                                                insertTextIntoChatInputBox(`/renameemoji old_name:${emoji.name} new_name:`);
                                             }}
                                         />
                                         <Menu.MenuItem
@@ -138,7 +128,7 @@ export function CustomEmojiStorePopout({
                                             color="danger"
                                             action={() => {
                                                 onClose();
-                                                ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", { plainText: `/deleteemoji name:${emoji.name}` });
+                                                insertTextIntoChatInputBox(`/deleteemoji name:${emoji.name}`);
                                             }}
                                         />
                                     </Menu.Menu>

@@ -1,5 +1,6 @@
 import React from "react";
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
+import { insertTextIntoChatInputBox } from "@utils/discord";
 import { Popout, useRef, useState } from "@webpack/common";
 import { CustomEmojiStorePopout } from "./emojiStore";
 import { definePluginSettings } from "@api/Settings";
@@ -464,11 +465,10 @@ const CustomEmojiStoreIcon = ({ isHovered }: { isHovered?: boolean }) => (
     </div>
 );
 
-const CustomEmojiStoreButton: ChatBarButtonFactory = ({ isAnyChat }) => {
+function CustomEmojiStoreButtonWrapper(props: any) {
     const buttonRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
-
-    if (!isAnyChat) return null;
+    const [isHovered, setIsHovered] = useState(false);
 
     return (
         <Popout
@@ -484,31 +484,33 @@ const CustomEmojiStoreButton: ChatBarButtonFactory = ({ isAnyChat }) => {
                 }} pluginStore={pluginStore} />
             )}
         >
-            {popoutProps => {
-                const [isHovered, setIsHovered] = useState(false);
-                return (
-                    <div
-                        ref={buttonRef}
-                        onClick={() => setIsOpen(!isOpen)}
-                        onMouseEnter={() => setIsHovered(true)}
-                        onMouseLeave={() => setIsHovered(false)}
+            {popoutProps => (
+                <div
+                    ref={buttonRef}
+                    onClick={() => setIsOpen(!isOpen)}
+                    onMouseEnter={() => setIsHovered(true)}
+                    onMouseLeave={() => setIsHovered(false)}
+                >
+                    <ChatBarButton
+                        tooltip="Open Custom Emoji Store"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsOpen(!isOpen);
+                        }}
+                        {...popoutProps}
                     >
-                        <ChatBarButton
-                            tooltip="Open Custom Emoji Store"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setIsOpen(!isOpen);
-                            }}
-                            {...popoutProps}
-                        >
-                            <CustomEmojiStoreIcon isHovered={isHovered} />
-                        </ChatBarButton>
-                    </div>
-                );
-            }}
+                        <CustomEmojiStoreIcon isHovered={isHovered} />
+                    </ChatBarButton>
+                </div>
+            )}
         </Popout>
     );
+}
+
+const CustomEmojiStoreButton: ChatBarButtonFactory = ({ isAnyChat }) => {
+    if (!isAnyChat) return null;
+    return <CustomEmojiStoreButtonWrapper />;
 };
 
 export default definePlugin({
