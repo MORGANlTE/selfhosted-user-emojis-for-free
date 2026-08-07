@@ -2,6 +2,9 @@
 __pycache__/
 */__pycache__/
 */__pycache__/*
-emojis.json
-pokemon_history.json
+*.json
 .vscode/settings.json
+# Private cogs directory (ignored in git)
+cogs/private/*.py
+!cogs/private/*.example.py
+!cogs/private/.gitkeep
