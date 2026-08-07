@@ -577,6 +577,19 @@ export default definePlugin({
                 return orig.apply(thisObj, args);
             },
         );
+        patcherManager.instead(
+            EmojiStore,
+            "getEmojis",
+            (args, orig, thisObj) => {
+                const result = orig.apply(thisObj, args);
+                if (result && pluginStore.customEmojiObjectsById.size > 0) {
+                    for (const emoji of pluginStore.customEmojiObjectsById.values()) {
+                        result.push(emoji);
+                    }
+                }
+                return result;
+            },
+        );
 
         if (EmojiStore.isEmojiUsable) {
             patcherManager.instead(
