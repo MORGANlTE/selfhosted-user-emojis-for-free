@@ -9,7 +9,7 @@ import {
     Menu,
 } from "@webpack/common";
 import { insertTextIntoChatInputBox } from "@utils/discord";
-import { ComponentDispatch } from "@webpack/common";
+import { ComponentDispatch, ContextMenuApi } from "@webpack/common";
 
 async function dispatchCommand(
     app: any,
@@ -72,23 +72,26 @@ export function createExpressionPickerPatch(getAppState: () => any) {
                 <Menu.MenuItem
                     id="steal-emoji-picker"
                     label="Steal to Morganite"
-                    action={() => {
+                    action={(event: any) => {
+                        // Close context menu first to allow inputs to be drafted natively
+                        if (ContextMenuApi && ContextMenuApi.closeContextMenu) {
+                            ContextMenuApi.closeContextMenu();
+                        }
+
                         const app = getAppState().selectedApp;
                         if (app) {
-                            // THE FIX: Format it exactly how your Python Regex expects it: <a:name:id>
                             const isAnimated = emoji.animated ? "a" : "";
-                            const cleanName = (emoji.name || "emoji").replace(
-                                /[^A-Za-z0-9_]/g,
-                                "",
-                            );
+                            const cleanName = (emoji.name || "emoji").replace(/[^A-Za-z0-9_]/g, "");
                             const formattedTag = `<${isAnimated}:${cleanName}:${emoji.id}>`;
 
-                            insertTextIntoChatInputBox(`/stealemoji emoji:${formattedTag} new_name:`);
+                            // Let's use ComponentDispatch instead of insertTextIntoChatInputBox just to be safe, sometimes picker eats the insert event
+                            if (ComponentDispatch && ComponentDispatch.dispatchToLastSubscribed) {
+                                ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", { plainText: `/stealemoji emoji:${formattedTag} new_name:` });
+                            } else {
+                                insertTextIntoChatInputBox(`/stealemoji emoji:${formattedTag} new_name:`);
+                            }
                         } else {
-                            showToast(
-                                "No bot selected in Vencord Settings!",
-                                Toasts.Type.FAILURE,
-                            );
+                            showToast("No bot selected in Vencord Settings!", Toasts.Type.FAILURE);
                         }
                     }}
                 />
@@ -152,16 +155,20 @@ export function createMessageContextPatch(getAppState: () => any) {
                 <Menu.MenuItem
                     id={`steal-${e.id}`}
                     label={`Steal :${e.name}:`}
-                    action={() => {
+                    action={(event: any) => {
+                        if (ContextMenuApi && ContextMenuApi.closeContextMenu) {
+                            ContextMenuApi.closeContextMenu();
+                        }
+
                         const app = getAppState().selectedApp;
                         if (app) {
-                            // Instead of auto-dispatching, prompt the user in the chat box so they can name it
-                            insertTextIntoChatInputBox(`/stealemoji emoji:${e.raw} new_name:`);
+                            if (ComponentDispatch && ComponentDispatch.dispatchToLastSubscribed) {
+                                ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", { plainText: `/stealemoji emoji:${e.raw} new_name:` });
+                            } else {
+                                insertTextIntoChatInputBox(`/stealemoji emoji:${e.raw} new_name:`);
+                            }
                         } else {
-                            showToast(
-                                "No bot selected in Vencord Settings!",
-                                Toasts.Type.FAILURE,
-                            );
+                            showToast("No bot selected in Vencord Settings!", Toasts.Type.FAILURE);
                         }
                     }}
                 />

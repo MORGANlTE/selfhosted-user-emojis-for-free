@@ -8,11 +8,27 @@ export function CustomEmojiStorePopout({
     pluginStore,
 }: any) {
     const [search, setSearch] = React.useState("");
+    const [selectedPack, setSelectedPack] = React.useState("All");
 
     const allEmojis = Array.from(pluginStore.loadedEmojis.values());
-    const filtered = allEmojis.filter((e: any) =>
-        e.name.toLowerCase().includes(search.toLowerCase()),
-    );
+
+    // Extract unique packs by checking for the `packname_` prefix convention
+    const packs = Array.from(new Set(allEmojis.map((e: any) => {
+        const parts = e.name.split("_");
+        return parts.length > 1 ? parts[0] : "Other";
+    }))).sort();
+    packs.unshift("All");
+
+    const filtered = allEmojis.filter((e: any) => {
+        const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase());
+        if (!matchesSearch) return false;
+
+        if (selectedPack === "All") return true;
+
+        const parts = e.name.split("_");
+        const packName = parts.length > 1 ? parts[0] : "Other";
+        return packName === selectedPack;
+    });
 
     const handleSelect = (emoji: any, event: any) => {
         try {
@@ -72,25 +88,43 @@ export function CustomEmojiStorePopout({
                             + Add
                         </Button>
                     </div>
+                </div>                <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                    <select
+                        value={selectedPack}
+                        onChange={(e: any) => setSelectedPack(e.target.value)}
+                        style={{
+                            padding: "8px",
+                            borderRadius: "4px",
+                            backgroundColor: "var(--background-tertiary)",
+                            color: "var(--text-normal)",
+                            border: "none",
+                            outline: "none",
+                            fontSize: "12px",
+                            cursor: "pointer",
+                            maxWidth: "100px"
+                        }}
+                    >
+                        {packs.map(pack => <option key={pack} value={pack}>{pack}</option>)}
+                    </select>
+                    <input
+                        type="text"
+                        placeholder={pluginStore.isSyncing ? "Syncing emojis..." : "Search custom emojis..."}
+                        value={search}
+                        onChange={(e: any) => setSearch(e.target.value)}
+                        style={{
+                            flex: 1,
+                            padding: "8px",
+                            borderRadius: "4px",
+                            backgroundColor: "var(--background-tertiary)",
+                            color: "var(--text-normal)",
+                            border: "none",
+                            outline: "none",
+                            fontSize: "14px",
+                            boxSizing: "border-box",
+                        }}
+                        autoFocus
+                    />
                 </div>
-                <input
-                    type="text"
-                    placeholder={pluginStore.isSyncing ? "Syncing emojis..." : "Search custom emojis..."}
-                    value={search}
-                    onChange={(e: any) => setSearch(e.target.value)}
-                    style={{
-                        width: "100%",
-                        padding: "8px",
-                        borderRadius: "4px",
-                        backgroundColor: "var(--background-tertiary)",
-                        color: "var(--text-normal)",
-                        border: "none",
-                        outline: "none",
-                        fontSize: "14px",
-                        boxSizing: "border-box",
-                    }}
-                    autoFocus
-                />
             </div>
             <div
                 style={{
@@ -191,7 +225,7 @@ export function CustomEmojiStorePopout({
                                 borderRadius: "4px",
                                 zIndex: 9999
                             }}>
-                                {emoji.name}
+                                {emoji.name.includes("_") ? emoji.name.split("_").slice(1).join("_") : emoji.name}
                             </span>
                         </div>
                     );
