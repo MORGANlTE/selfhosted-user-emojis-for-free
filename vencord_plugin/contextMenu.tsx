@@ -84,12 +84,15 @@ export function createExpressionPickerPatch(getAppState: () => any) {
                             const cleanName = (emoji.name || "emoji").replace(/[^A-Za-z0-9_]/g, "");
                             const formattedTag = `<${isAnimated}:${cleanName}:${emoji.id}>`;
 
-                            // Let's use ComponentDispatch instead of insertTextIntoChatInputBox just to be safe, sometimes picker eats the insert event
-                            if (ComponentDispatch && ComponentDispatch.dispatchToLastSubscribed) {
-                                ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", { plainText: `/stealemoji emoji:${formattedTag} new_name:` });
-                            } else {
-                                insertTextIntoChatInputBox(`/stealemoji emoji:${formattedTag} new_name:`);
+                            // The expression picker can intercept INSERT_TEXT. To ensure it goes to the chat, we use the raw insert method.
+                            // We also must close the expression picker first.
+                            if (ComponentDispatch && ComponentDispatch.dispatch) {
+                                ComponentDispatch.dispatch("EXPRESSION_PICKER_CLOSE");
                             }
+
+                            setTimeout(() => {
+                                insertTextIntoChatInputBox(`/stealemoji emoji:${formattedTag} new_name:`);
+                            }, 100);
                         } else {
                             showToast("No bot selected in Vencord Settings!", Toasts.Type.FAILURE);
                         }
@@ -162,11 +165,9 @@ export function createMessageContextPatch(getAppState: () => any) {
 
                         const app = getAppState().selectedApp;
                         if (app) {
-                            if (ComponentDispatch && ComponentDispatch.dispatchToLastSubscribed) {
-                                ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", { plainText: `/stealemoji emoji:${e.raw} new_name:` });
-                            } else {
+                            setTimeout(() => {
                                 insertTextIntoChatInputBox(`/stealemoji emoji:${e.raw} new_name:`);
-                            }
+                            }, 100);
                         } else {
                             showToast("No bot selected in Vencord Settings!", Toasts.Type.FAILURE);
                         }

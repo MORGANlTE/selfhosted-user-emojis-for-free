@@ -139,7 +139,7 @@ export function CustomEmojiStorePopout({
             >
                 {filtered.map((emoji: any) => {
                     // Try webp first, with fallback to png/gif logic handled dynamically or via onError
-                    const url = `https://cdn.discordapp.com/emojis/${emoji.id}?size=48&quality=lossless`;
+                    const url = `https://cdn.discordapp.com/emojis/${emoji.id}?size=48&quality=lossless${emoji.animated ? "&animated=true" : ""}`;
                     return (
                         <div
                             key={emoji.id}
