@@ -631,6 +631,26 @@ export default definePlugin({
         // --- MESSAGE DISPATCH INTERCEPTOR ---
         patcherManager.instead(
             MessageActions,
+            "editMessage",
+            async (args, orig, thisObj) => {
+                const [channelId, messageId, message] = args;
+                if (message?.content && pluginStore.loadedEmojis.size > 0) {
+                    message.content = String(message.content).replace(
+                        emojiRegex,
+                        (match: string, tagName: string, _tagId: string, colonName: string, semiName: string) => {
+                            const rawName = (tagName || colonName || semiName || "").toLowerCase();
+                            const found = pluginStore.loadedEmojis.get(rawName);
+                            if (!found) return match;
+                            return `;${found.name};`;
+                        }
+                    );
+                }
+                return orig.apply(thisObj, args);
+            }
+        );
+
+        patcherManager.instead(
+            MessageActions,
             "sendMessage",
             async (args, orig, thisObj) => {
                 const [channelId, message, promise, extra] = args;

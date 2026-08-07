@@ -14,7 +14,7 @@ export function CustomEmojiStorePopout({
         e.name.toLowerCase().includes(search.toLowerCase()),
     );
 
-    const handleSelect = (emoji: any) => {
+    const handleSelect = (emoji: any, event: any) => {
         try {
             // insertTextIntoChatInputBox naturally parses the text if it corresponds to an ID in EmojiStore
             const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}> `;
@@ -25,7 +25,9 @@ export function CustomEmojiStorePopout({
             showToast("Copied to clipboard!", Toasts.Type.SUCCESS);
         }
 
-        onClose();
+        if (!event.shiftKey) {
+            onClose();
+        }
     };
 
     return (
@@ -107,7 +109,7 @@ export function CustomEmojiStorePopout({
                     return (
                         <div
                             key={emoji.id}
-                            onClick={() => handleSelect(emoji)}
+                            onClick={(e: any) => handleSelect(emoji, e)}
                             onContextMenu={(e: any) => {
                                 e.preventDefault();
                                 ContextMenuApi.openContextMenu(e, () => (
@@ -167,6 +169,7 @@ export function CustomEmojiStorePopout({
                             <img
                                 src={url}
                                 alt={emoji.name}
+                                draggable={false}
                                 style={{
                                     width: "32px",
                                     height: "32px",

@@ -8,6 +8,8 @@ import {
     SelectedChannelStore,
     Menu,
 } from "@webpack/common";
+import { insertTextIntoChatInputBox } from "@utils/discord";
+import { ComponentDispatch } from "@webpack/common";
 
 async function dispatchCommand(
     app: any,
@@ -81,9 +83,7 @@ export function createExpressionPickerPatch(getAppState: () => any) {
                             );
                             const formattedTag = `<${isAnimated}:${cleanName}:${emoji.id}>`;
 
-                            dispatchCommand(app, "stealemoji", [
-                                { type: 3, name: "emoji", value: formattedTag },
-                            ]);
+                            insertTextIntoChatInputBox(`/stealemoji emoji:${formattedTag} new_name:`);
                         } else {
                             showToast(
                                 "No bot selected in Vencord Settings!",
@@ -155,10 +155,8 @@ export function createMessageContextPatch(getAppState: () => any) {
                     action={() => {
                         const app = getAppState().selectedApp;
                         if (app) {
-                            // THE FIX: Send the raw formatted tag instead of just the ID
-                            dispatchCommand(app, "stealemoji", [
-                                { type: 3, name: "emoji", value: e.raw },
-                            ]);
+                            // Instead of auto-dispatching, prompt the user in the chat box so they can name it
+                            insertTextIntoChatInputBox(`/stealemoji emoji:${e.raw} new_name:`);
                         } else {
                             showToast(
                                 "No bot selected in Vencord Settings!",
