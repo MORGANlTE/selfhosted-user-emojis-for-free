@@ -167,7 +167,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
               }
               style={{ padding: "0 8px" }}
             >
-              🛒
+              ✏️
             </Button>
             {pluginStore.isSyncing && (
               <div style={{ color: "#aaa", fontSize: "12px" }}>Loading...</div>
@@ -500,7 +500,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
               style={{
                 fontSize: "18px",
                 fontWeight: "bold",
-                margin: "12px 0",
+                margin: "0 0 12px 0",
                 color: "var(--brand-experiment)",
               }}
             >
