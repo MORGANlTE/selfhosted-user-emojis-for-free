@@ -18,6 +18,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
   const [activeTab, setActiveTab] = React.useState("emojis");
   const [storePacks, setStorePacks] = React.useState<any[]>([]);
   const [loadingPacks, setLoadingPacks] = React.useState(false);
+  const [pendingInstalls, setPendingInstalls] = React.useState<string[]>([]);
 
   // Random emoji state moved to top level to avoid React Error 300
   const allEmojisArr = Array.from(pluginStore.loadedEmojis.values());
@@ -82,16 +83,30 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
   const handleSelect = (emoji: any, event: any) => {
     try {
       if (emoji.isRandom) {
-        insertTextIntoChatInputBox(`<:gift:999999999999999999> `);
+        const arr = Array.from(pluginStore.loadedEmojis.values());
+        if (arr.length > 0) {
+          const rand = arr[Math.floor(Math.random() * arr.length)];
+          insertTextIntoChatInputBox(`<${rand.animated ? "a" : ""}:${rand.name}:${rand.id}> `);
+        } else {
+          insertTextIntoChatInputBox(`;random; `);
+        }
       } else {
         const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}> `;
         insertTextIntoChatInputBox(textToInsert);
       }
     } catch (e) {
-      const textToInsert = emoji.isRandom
-        ? `;random;`
-        : `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
-      navigator.clipboard.writeText(textToInsert);
+      if (emoji.isRandom) {
+        const arr = Array.from(pluginStore.loadedEmojis.values());
+        if (arr.length > 0) {
+          const rand = arr[Math.floor(Math.random() * arr.length)];
+          navigator.clipboard.writeText(`<${rand.animated ? "a" : ""}:${rand.name}:${rand.id}>`);
+        } else {
+          navigator.clipboard.writeText(`;random;`);
+        }
+      } else {
+        const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
+        navigator.clipboard.writeText(textToInsert);
+      }
       showToast("Copied to clipboard!", Toasts.Type.SUCCESS);
     }
 
@@ -544,6 +559,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
                 Object.keys(pack.emojis).some((name: string) =>
                   pluginStore.loadedEmojis.has(name.toLowerCase()),
                 );
+              const isPending = pendingInstalls.includes(pack.name);
 
               return (
                 <div
@@ -694,9 +710,10 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
                       color={
                         isInstalled ? Button.Colors.GREEN : Button.Colors.BRAND
                       }
-                      disabled={isInstalled}
+                      disabled={isInstalled || isPending}
                       onClick={() => {
-                        if (isInstalled) return;
+                        if (isInstalled || isPending) return;
+                        setPendingInstalls((prev) => [...prev, pack.name]);
                         onClose();
                         insertTextIntoChatInputBox(
                           `/installpack pack_name:${pack.name}`,
@@ -708,7 +725,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
                       }}
                       style={{ flex: 1 }}
                     >
-                      {isInstalled ? "✅ Installed" : "📥 Install Pack"}
+                      {isInstalled ? "✅ Installed" : (isPending ? "⏳ Pending..." : "📥 Install Pack")}
                     </Button>
                     {isInstalled && (
                       <Button
