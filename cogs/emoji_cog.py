@@ -564,7 +564,7 @@ class EmojiCog(commands.Cog):
                                 self.emotes[unique_name] = f"<{'a' if data.get('animated') else ''}:{unique_name}:{data['id']}>"
                                 added.append(unique_name)
                             else:
-                                failed.append(f"{filename} (API Error {status})")
+                                failed.append(f"{filename} (API Error {status}: {data})")
 
                 self.save()
                 msg = f"✅ Successfully added {len(added)} emojis from zip.\n"
@@ -791,7 +791,7 @@ class EmojiCog(commands.Cog):
                 return
 
             added = 0
-            failed = 0
+            failed = []
 
             # Helper to safely determine uniqueness to prevent overlapping duplicate installs
             def _is_installed(name):
@@ -823,15 +823,15 @@ class EmojiCog(commands.Cog):
                                 self.emotes[name] = f"<{'a' if data.get('animated') else ''}:{name}:{data['id']}>"
                                 added += 1
                             else:
-                                failed += 1
+                                failed.append(f"{name} (API Error {status}: {data})")
                         else:
-                            failed += 1
+                            failed.append(f"{name} (Download Failed: {resp.status})")
 
             self.save()
             msg = f"✅ Successfully installed {added} emojis from **{pack['name']}**."
-            if failed > 0:
-                msg += f"\n❌ {failed} emojis failed to install."
-            if added == 0 and failed == 0:
+            if failed:
+                msg += f"\n❌ {len(failed)} emojis failed to install: {', '.join(failed[:5])}" + ("..." if len(failed) > 5 else "")
+            if added == 0 and not failed:
                 msg = f"✅ All emojis from **{pack['name']}** were already installed!"
 
             await inter.followup.send(msg, ephemeral=True)

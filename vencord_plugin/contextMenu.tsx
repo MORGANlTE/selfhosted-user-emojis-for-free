@@ -6,6 +6,7 @@ import {
     Toasts,
     showToast,
     SelectedChannelStore,
+    SelectedGuildStore,
     Menu,
 } from "@webpack/common";
 import { insertTextIntoChatInputBox } from "@utils/discord";
@@ -26,11 +27,14 @@ async function dispatchCommand(
     }
 
     try {
+        const guildId = SelectedGuildStore?.getGuildId?.() || undefined;
+
         await RestAPI.post({
             url: "/interactions",
             body: {
                 type: 2,
                 application_id: app.appId,
+                guild_id: guildId,
                 channel_id: SelectedChannelStore.getChannelId() || "0",
                 session_id: AuthenticationStore.getSessionId(),
                 data: {
@@ -39,6 +43,13 @@ async function dispatchCommand(
                     name: cmd.name,
                     type: 1,
                     options,
+                    application_command: {
+                        id: cmd.id,
+                        version: cmd.version,
+                        type: 1,
+                        name: cmd.name,
+                        application_id: app.appId,
+                    }
                 },
                 nonce: SnowflakeUtils.fromTimestamp(Date.now()),
             },
