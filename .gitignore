@@ -10,3 +10,4 @@ cogs/private/*.py
 !cogs/private/.gitkeep
 helpers/*.txt
 helpers/private/*.py
+!cogs/private/.gitkeep
