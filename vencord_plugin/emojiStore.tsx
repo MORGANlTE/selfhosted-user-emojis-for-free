@@ -21,7 +21,7 @@ export function CustomEmojiStorePopout({
             // You can upload the output JSON files from `helpers/pack_maker.py` into a Github Gist,
             // or a Github repository. Update this URL to point to a raw JSON array of pack links or content:
             // e.g., https://raw.githubusercontent.com/YourName/YourRepo/main/packs/index.json
-            fetch("https://raw.githubusercontent.com/Morganite/UserEmojiPicker/main/packs_index.json")
+            fetch("https://gist.githubusercontent.com/MORGANlTE/b842222299fc6b6c1fdeca70db12674c/raw/2eaef1fbb7aa90dc6797be8ed2f1904ab48070c8/emojis.json")
                 .then(r => r.json())
                 .catch(() => {
                     // MOCK fallback for demo since no repo exists yet
@@ -299,45 +299,108 @@ export function CustomEmojiStorePopout({
                     </div>
                 </div>
             ) : (
-                <div style={{ padding: "12px", overflowY: "auto", flex: 1, backgroundColor: "rgba(0,0,0,0.6)", color: "#fff" }}>
-                    {loadingPacks ? <div style={{textAlign:"center", padding:"20px"}}>Loading Packs...</div> : (
-                        storePacks.map(pack => (
-                            <div key={pack.name} style={{
-                                backgroundColor: "rgba(255,255,255,0.1)",
-                                borderRadius: "8px",
-                                padding: "12px",
-                                marginBottom: "12px"
-                            }}>
-                                <h4 style={{margin: "0 0 4px 0", fontSize: "16px"}}>{pack.name}</h4>
-                                <p style={{margin: "0 0 8px 0", fontSize: "12px", color: "#ccc"}}>{pack.description || "No description provided."}</p>
-                                <div style={{display: "flex", gap: "4px", flexWrap: "wrap", marginBottom: "12px"}}>
-                                    {Object.entries(pack.emojis).slice(0, 5).map(([name, tag]: any) => {
-                                        const parts = tag.replace(/[<>]/g, "").split(":");
-                                        const id = parts[parts.length - 1];
-                                        return <img key={id} src={`https://cdn.discordapp.com/emojis/${id}?size=24&quality=lossless`} style={{width:"24px",height:"24px"}} title={name} />;
-                                    })}
-                                    {Object.keys(pack.emojis).length > 5 && <span style={{fontSize:"10px", alignSelf:"center"}}>+{Object.keys(pack.emojis).length - 5} more</span>}
-                                </div>
-                                <Button
-                                    size={Button.Sizes.SMALL}
-                                    color={Button.Colors.BRAND}
-                                    onClick={() => {
-                                        showToast("Packs must be installed via bot commands or manual sync in this version.", Toasts.Type.SUCCESS);
-                                    }}
-                                >
-                                    Install Pack
-                                </Button>
-                            </div>
-                        ))
-                    )}
-                    {storePacks.length === 0 && !loadingPacks && <div style={{textAlign:"center", padding:"20px", color:"#aaa"}}>No packs available in the remote store.</div>}
-
-                    <div style={{marginTop: "20px", padding: "12px", backgroundColor: "rgba(0,0,0,0.8)", borderRadius: "8px", fontSize: "11px", color: "#ccc"}}>
-                        <b>How to add your own packs:</b><br/>
-                        1. Use <code>helpers/pack_maker.py</code> in your bot directory.<br/>
-                        2. Upload the JSON output to a Github Gist.<br/>
-                        3. Update the <code>fetch()</code> URL in <code>emojiStore.tsx</code> to point to a central <code>index.json</code> containing your pack URLs.
+                <div style={{
+                    padding: "16px",
+                    overflowY: "auto",
+                    flex: 1,
+                    backgroundColor: "rgba(20,20,25,0.95)",
+                    color: "#fff",
+                    backdropFilter: "blur(10px)",
+                    transition: "all 0.3s ease"
+                }}>
+                    <div style={{ marginBottom: "16px", textAlign: "center" }}>
+                        <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: 0, color: "var(--brand-experiment)" }}>🛒 Morganite Packs Market</h2>
+                        <p style={{ fontSize: "12px", color: "#aaa", marginTop: "4px" }}>Discover and install community emoji packs instantly.</p>
                     </div>
+
+                    {loadingPacks ? (
+                        <div style={{textAlign:"center", padding:"40px"}}>
+                            <div className="spinner-mock" style={{
+                                width: "24px", height: "24px", border: "3px solid rgba(255,255,255,0.3)",
+                                borderRadius: "50%", borderTopColor: "#fff", animation: "spin 1s ease-in-out infinite", margin: "0 auto"
+                            }}></div>
+                        </div>
+                    ) : (
+                        storePacks.map(pack => {
+                            // Check if installed
+                            const isInstalled = pack.emojis && Object.keys(pack.emojis).some((name: string) =>
+                                pluginStore.loadedEmojis.has(name.toLowerCase())
+                            );
+
+                            return (
+                                <div key={pack.name} style={{
+                                    backgroundColor: "rgba(255,255,255,0.05)",
+                                    border: "1px solid rgba(255,255,255,0.1)",
+                                    borderRadius: "12px",
+                                    padding: "16px",
+                                    marginBottom: "16px",
+                                    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                                    boxShadow: "0 4px 6px rgba(0,0,0,0.3)"
+                                }}
+                                onMouseEnter={(e: any) => {
+                                    e.currentTarget.style.transform = "translateY(-2px)";
+                                    e.currentTarget.style.boxShadow = "0 8px 12px rgba(0,0,0,0.5)";
+                                    e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)";
+                                }}
+                                onMouseLeave={(e: any) => {
+                                    e.currentTarget.style.transform = "translateY(0)";
+                                    e.currentTarget.style.boxShadow = "0 4px 6px rgba(0,0,0,0.3)";
+                                    e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+                                }}>
+                                    <div style={{display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px"}}>
+                                        <div>
+                                            <h4 style={{margin: "0 0 4px 0", fontSize: "16px", color: "var(--header-primary)"}}>{pack.name}</h4>
+                                            <p style={{margin: "0", fontSize: "12px", color: "var(--text-muted)"}}>{pack.description || "No description provided."}</p>
+                                        </div>
+                                    </div>
+
+                                    <div style={{
+                                        display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "16px",
+                                        backgroundColor: "rgba(0,0,0,0.3)", padding: "8px", borderRadius: "8px"
+                                    }}>
+                                        {pack.emojis && Object.entries(pack.emojis).slice(0, 10).map(([name, tag]: any) => {
+                                            const parts = tag.replace(/[<>]/g, "").split(":");
+                                            const id = parts[parts.length - 1];
+                                            const isAnimated = parts[0] === "a";
+                                            return <img
+                                                key={id}
+                                                src={`https://cdn.discordapp.com/emojis/${id}?size=32&quality=lossless${isAnimated ? "&animated=true" : ""}`}
+                                                style={{width:"28px", height:"28px", objectFit: "contain", borderRadius: "4px"}}
+                                                title={name}
+                                            />;
+                                        })}
+                                        {pack.emojis && Object.keys(pack.emojis).length > 10 && (
+                                            <div style={{fontSize:"11px", color: "#ccc", alignSelf:"center", padding: "0 4px", fontWeight: "bold"}}>
+                                                +{Object.keys(pack.emojis).length - 10}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <Button
+                                        size={Button.Sizes.SMALL}
+                                        color={isInstalled ? Button.Colors.GREEN : Button.Colors.BRAND}
+                                        disabled={isInstalled}
+                                        onClick={() => {
+                                            if (isInstalled) return;
+                                            // Trigger installation script or command
+                                            showToast("Packs must be installed via bot commands or manual sync in this version.", Toasts.Type.SUCCESS);
+                                        }}
+                                        style={{ width: "100%" }}
+                                    >
+                                        {isInstalled ? "✅ Installed" : "📥 Install Pack"}
+                                    </Button>
+                                </div>
+                            );
+                        })
+                    )}
+                    {storePacks.length === 0 && !loadingPacks && <div style={{textAlign:"center", padding:"40px", color:"#aaa"}}>No packs available in the remote store.</div>}
+
+                    <style>{`
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    `}</style>
                 </div>
             )}
         </div>
