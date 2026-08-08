@@ -18,8 +18,7 @@ from helpers.api import DiscordAPIHelper
 EMOJI_FILE = "emojis.json"
 PAT = re.compile(r";([A-Za-z0-9_]+);")
 
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-GIST_ID = os.getenv("GIST_ID")
+
 
 class RenameEmojiModal(discord.ui.Modal, title="Rename Emoji"):
     def __init__(self, cog: "EmojiCog", emoji_id: str, old_name: str, is_animated: bool):
@@ -243,46 +242,7 @@ class EmojiCog(commands.Cog):
         with open(EMOJI_FILE, "w", encoding="utf8") as f:
             json.dump(self.emotes, f, indent=2)
 
-    async def sync_to_gist(self):
-        """Pushes the current formatted emotes list directly to GitHub Gist."""
-        if not GITHUB_TOKEN or not GIST_ID:
-            return
 
-        formatted_emojis = []
-        for name, tag in self.emotes.items():
-            match = re.match(r"<(a?):([^:]+):(\d+)>", tag)
-            if match:
-                formatted_emojis.append({
-                    "id": match.group(3),
-                    "name": name,
-                    "animated": bool(match.group(1))
-                })
-
-        url = f"https://api.github.com/gists/{GIST_ID}"
-        headers = {
-            "Authorization": f"Bearer {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "MyDiscordBot/1.0",
-            "X-GitHub-Api-Version": "2022-11-28"
-        }
-        payload = {
-            "files": {
-                "emojis.json": {
-                    "content": json.dumps(formatted_emojis, indent=2)
-                }
-            }
-        }
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.patch(url, json=payload, headers=headers) as resp:
-                    if resp.status == 200:
-                        print(f"[+] Synced {len(formatted_emojis)} emojis to GitHub Gist!")
-                    else:
-                        text = await resp.text()
-                        print(f"[!] Gist sync failed ({resp.status}): {text}")
-        except Exception as e:
-            print(f"[!] Gist sync exception: {e}")
 
     async def refresh_emojis(self):
         status, data = await DiscordAPIHelper.request("GET", "/emojis")
@@ -398,25 +358,20 @@ class EmojiCog(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.command(name="elist", description="List all available emotes")
     async def elist(self, inter: discord.Interaction):
-        page_size = 15
+        emb = discord.Embed(title="Available Emotes", description="")
 
-        async def get_page(page: int):
-            emb = discord.Embed(title="Available Emotes", description="")
-            offset = (page - 1) * page_size
-            keys = list(self.emotes.keys())[offset : offset + page_size]
-            for emoji in keys:
-                emb.add_field(
-                    name="** **",
-                    value=f"📱`;{emoji};`\n```;{emoji};```" + self.emotes[emoji],
-                    inline=True,
-                )
-            emb.set_author(name="Long press the 📱 field to copy for Mobile")
+        description_lines = []
+        for name, tag in self.emotes.items():
+            description_lines.append(f"{tag} `;{name};`")
 
-            total_pages = Pagination.compute_total_pages(len(self.emotes), page_size)
-            emb.set_footer(text=f"Page {page} from {total_pages}")
-            return emb, total_pages
+        emb.description = "\n".join(description_lines)
+        if len(emb.description) > 4000:
+            emb.description = emb.description[:3997] + "..."
 
-        await Pagination(inter, get_page).navegate()
+        emb.set_footer(text="Install our Vencord plugin for the best experience!")
+        emb.url = "https://github.com/Morganite/UserEmojiPicker" # Example link to github page
+
+        await inter.response.send_message(embed=emb, ephemeral=True)
 
     # /search
     @app_commands.allowed_installs(users=True, guilds=False)
@@ -462,6 +417,24 @@ class EmojiCog(commands.Cog):
                 choices.append(app_commands.Choice(name=name, value=name))
                 if len(choices) >= 25:
                     break
+        return choices
+
+    async def pack_name_autocomplete(self, inter: discord.Interaction, current: str):
+        import os, json
+        choices = []
+        packs_file = "vencord_plugin/packs_index.json"
+        if os.path.exists(packs_file):
+            try:
+                with open(packs_file, "r", encoding="utf-8") as f:
+                    packs = json.load(f)
+                for p in packs:
+                    name = p.get("name", "")
+                    if current.lower() in name.lower():
+                        choices.append(app_commands.Choice(name=name, value=name))
+                        if len(choices) >= 25:
+                            break
+            except:
+                pass
         return choices
 
     # /renameemoji
@@ -542,40 +515,86 @@ class EmojiCog(commands.Cog):
             f"Loaded {len(self.emotes)} emojis.", ephemeral=True
         )
 
+    def _get_unique_name(self, base_name: str) -> str:
+        """Finds a unique name by appending numbers if it already exists."""
+        if base_name not in self.emotes:
+            return base_name
+        counter = 1
+        while f"{base_name}{counter}" in self.emotes:
+            counter += 1
+        return f"{base_name}{counter}"
+
     # /addemoji
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    @app_commands.command(name="addemoji", description="Add a new emoji")
-    @app_commands.describe(name="Emoji name", image="PNG image")
+    @app_commands.command(name="addemoji", description="Add a new emoji from image or zip")
+    @app_commands.describe(name="Emoji name (ignored for zip)", file="PNG/GIF image or ZIP file")
     async def addemoji(
         self,
         inter: discord.Interaction,
         name: str,
-        image: discord.Attachment,
+        file: discord.Attachment,
     ):
         await inter.response.defer(ephemeral=True)
-        image_bytes = await image.read()
+        file_bytes = await file.read()
+
+        if file.filename.endswith(".zip"):
+            import zipfile
+            import io
+
+            added = []
+            failed = []
+
+            try:
+                with zipfile.ZipFile(io.BytesIO(file_bytes)) as z:
+                    for filename in z.namelist():
+                        if filename.endswith((".png", ".gif", ".jpg", ".jpeg")):
+                            base_name = filename.split('/')[-1].rsplit('.', 1)[0].replace(" ", "_")
+                            unique_name = self._get_unique_name(base_name)
+
+                            img_data = z.read(filename)
+                            img_type = "gif" if filename.endswith(".gif") else "png"
+                            payload = {
+                                "name": unique_name,
+                                "image": f"data:image/{img_type};base64," + base64.b64encode(img_data).decode(),
+                            }
+
+                            status, data = await DiscordAPIHelper.request("POST", "/emojis", payload)
+                            if status == 201:
+                                self.emotes[unique_name] = f"<{'a' if data.get('animated') else ''}:{unique_name}:{data['id']}>"
+                                added.append(unique_name)
+                            else:
+                                failed.append(f"{filename} (API Error {status})")
+
+                self.save()
+                msg = f"✅ Successfully added {len(added)} emojis from zip.\n"
+                if failed:
+                    msg += f"❌ Failed to add {len(failed)} emojis: {', '.join(failed[:5])}" + ("..." if len(failed) > 5 else "")
+                await inter.followup.send(msg, ephemeral=True)
+
+            except zipfile.BadZipFile:
+                await inter.followup.send("❌ Invalid zip file.", ephemeral=True)
+            except Exception as e:
+                await inter.followup.send(f"❌ Error processing zip: {e}", ephemeral=True)
+            return
+
+        # Regular Image Upload
+        unique_name = self._get_unique_name(name)
+        img_type = "gif" if file.filename.endswith(".gif") else "png"
         payload = {
-            "name": name,
-            "image": "data:image/png;base64,"
-            + base64.b64encode(image_bytes).decode(),
+            "name": unique_name,
+            "image": f"data:image/{img_type};base64," + base64.b64encode(file_bytes).decode(),
         }
 
         status, data = await DiscordAPIHelper.request("POST", "/emojis", payload)
 
         if status != 201:
-            await inter.followup.send(
-                f"Failed: {data}", ephemeral=True
-            )
+            await inter.followup.send(f"Failed: {data}", ephemeral=True)
             return
 
-        self.emotes[name] = (
-            f"<{'a' if data.get('animated') else ''}:{name}:{data['id']}>"
-        )
+        self.emotes[unique_name] = f"<{'a' if data.get('animated') else ''}:{unique_name}:{data['id']}>"
         self.save()
-        await inter.followup.send(
-            f"Added {self.emotes[name]} as ;{name};", ephemeral=True
-        )
+        await inter.followup.send(f"Added {self.emotes[unique_name]} as ;{unique_name};", ephemeral=True)
 
     # /stealemoji
     @app_commands.allowed_installs(users=True, guilds=False)
@@ -690,6 +709,130 @@ class EmojiCog(commands.Cog):
     # /esync
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.command(
+        name="uninstallpack",
+        description="Uninstall an emoji pack and remove its emojis.",
+    )
+    @app_commands.describe(pack_name="The exact name of the pack to uninstall")
+    @app_commands.autocomplete(pack_name=pack_name_autocomplete)
+    async def uninstallpack(
+        self,
+        inter: discord.Interaction,
+        pack_name: str,
+    ):
+        await inter.response.defer(ephemeral=True)
+        import os, json
+
+        packs_file = "vencord_plugin/packs_index.json"
+        if not os.path.exists(packs_file):
+            await inter.followup.send("❌ Packs index file not found.", ephemeral=True)
+            return
+
+        with open(packs_file, "r", encoding="utf-8") as f:
+            packs = json.load(f)
+
+        pack = next((p for p in packs if p.get("name", "").lower() == pack_name.lower()), None)
+        if not pack:
+            await inter.followup.send(f"❌ Pack `{pack_name}` not found in the marketplace.", ephemeral=True)
+            return
+
+        emojis = pack.get("emojis", {})
+        if not emojis:
+            await inter.followup.send("❌ Pack has no emojis.", ephemeral=True)
+            return
+
+        removed = 0
+        for name in emojis.keys():
+            if name in self.emotes:
+                del self.emotes[name]
+                removed += 1
+
+        self.save()
+        await inter.followup.send(f"✅ Successfully uninstalled **{pack['name']}**, removing {removed} emojis.", ephemeral=True)
+
+    @app_commands.allowed_installs(users=True, guilds=False)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.command(
+        name="installpack",
+        description="Install an emoji pack directly from the marketplace.",
+    )
+    @app_commands.describe(pack_name="The exact name of the pack to install")
+    @app_commands.autocomplete(pack_name=pack_name_autocomplete)
+    async def installpack(
+        self,
+        inter: discord.Interaction,
+        pack_name: str,
+    ):
+        await inter.response.defer(ephemeral=True)
+        import aiohttp
+
+        try:
+            # We now load packs natively from the vencord plugin folder
+            packs_file = "vencord_plugin/packs_index.json"
+            if not os.path.exists(packs_file):
+                await inter.followup.send("❌ Packs index file not found.", ephemeral=True)
+                return
+            with open(packs_file, "r", encoding="utf-8") as f:
+                packs = json.load(f)
+
+            pack = next((p for p in packs if p.get("name", "").lower() == pack_name.lower()), None)
+            if not pack:
+                await inter.followup.send(f"❌ Pack `{pack_name}` not found in the marketplace.", ephemeral=True)
+                return
+
+            emojis = pack.get("emojis", {})
+            if not emojis:
+                await inter.followup.send("❌ Pack has no emojis.", ephemeral=True)
+                return
+
+            added = 0
+            failed = 0
+
+            # Helper to safely determine uniqueness to prevent overlapping duplicate installs
+            def _is_installed(name):
+                return name in self.emotes
+
+            for name, tag in emojis.items():
+                if _is_installed(name):
+                    continue
+
+                match = re.match(r"<(a?):([^:]+):(\d+)>", tag)
+                if not match:
+                    continue
+
+                is_animated = bool(match.group(1))
+                emoji_id = match.group(3)
+
+                # Fetch image from Discord CDN
+                ext = "gif" if is_animated else "png"
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(f"https://cdn.discordapp.com/emojis/{emoji_id}.{ext}") as resp:
+                        if resp.status == 200:
+                            img_data = await resp.read()
+                            payload = {
+                                "name": name,
+                                "image": f"data:image/{ext};base64," + base64.b64encode(img_data).decode(),
+                            }
+                            status, data = await DiscordAPIHelper.request("POST", "/emojis", payload)
+                            if status == 201:
+                                self.emotes[name] = f"<{'a' if data.get('animated') else ''}:{name}:{data['id']}>"
+                                added += 1
+                            else:
+                                failed += 1
+                        else:
+                            failed += 1
+
+            self.save()
+            msg = f"✅ Successfully installed {added} emojis from **{pack['name']}**."
+            if failed > 0:
+                msg += f"\n❌ {failed} emojis failed to install."
+            if added == 0 and failed == 0:
+                msg = f"✅ All emojis from **{pack['name']}** were already installed!"
+
+            await inter.followup.send(msg, ephemeral=True)
+        except Exception as e:
+            await inter.followup.send(f"❌ Error installing pack: {e}", ephemeral=True)
+
     @app_commands.command(
         name="esync",
         description="Return your emoji cache as a JSON file for plugin sync.",

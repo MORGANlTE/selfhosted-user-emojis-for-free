@@ -42,40 +42,23 @@ async def on_app_command_error(
 
 @bot.event
 async def setup_hook():
-    modules = {
-        "ENABLE_EMOJI_COMMANDS": ("cogs.emoji_cog", True),
-        "ENABLE_FUN_COMMANDS": ("cogs.fun_cog", False),
-        "ENABLE_POKEMON_COMMANDS": ("cogs.pokemon_cog", False),
-        "ENABLE_UTILITY_COMMANDS": ("cogs.utility_cog", False),
-    }
-
     # 1. Load standard public modules
-    for env_var, (extension, default_state) in modules.items():
-        if is_module_enabled(env_var, default=default_state):
-            try:
-                await bot.load_extension(extension)
-                print(f"[+] Loaded extension: {extension}")
-            except Exception as e:
-                print(f"[!] Failed to load extension {extension}: {e}")
-        else:
-            print(f"[-] Skipped extension: {extension} (Disabled)")
+    try:
+        await bot.load_extension("cogs.emoji_cog")
+        print(f"[+] Loaded extension: cogs.emoji_cog")
+    except Exception as e:
+        print(f"[!] Failed to load extension cogs.emoji_cog: {e}")
 
     # 2. Load private cogs safely (if the folder exists & contains files)
-    private_dir = os.path.join("cogs", "private")
-    if os.path.exists(private_dir) and os.path.isdir(private_dir):
-        for filename in os.listdir(private_dir):
-            # Ignore non-python files, hidden files, and example templates
-            if (
-                filename.endswith(".py") 
-                and not filename.startswith("_") 
-                and not filename.endswith(".example.py")
-            ):
-                ext_name = f"cogs.private.{filename[:-3]}"
-                try:
-                    await bot.load_extension(ext_name)
-                    print(f"[+] Loaded private extension: {ext_name}")
-                except Exception as e:
-                    print(f"[!] Failed to load private extension {ext_name}: {e}")
+    private_cogs_path = "cogs/private"
+    for filename in os.listdir(private_cogs_path):
+        if filename.endswith(".py") and not filename.startswith("__"):
+            module_name = f"cogs.private.{filename[:-3]}"
+            try:
+                await bot.load_extension(module_name)
+                print(f"[+] Loaded private extension: {module_name}")
+            except Exception as e:
+                print(f"[!] Failed to load private extension {module_name}: {e}")
 
     # Sync slash commands with Discord API
     await bot.tree.sync()
