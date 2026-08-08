@@ -80,7 +80,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
   const handleSelect = (emoji: any, event: any) => {
     try {
       if (emoji.isRandom) {
-        insertTextIntoChatInputBox(`<:random:999999999999999999> `);
+        insertTextIntoChatInputBox(`<:gift:999999999999999999> `);
       } else {
         const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}> `;
         insertTextIntoChatInputBox(textToInsert);
@@ -275,8 +275,8 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
                 onClick={(e: any) =>
                   handleSelect(
                     {
-                      name: "random",
-                      id: "random",
+                      name: "gift",
+                      id: "999999999999999999",
                       animated: false,
                       isRandom: true,
                     },

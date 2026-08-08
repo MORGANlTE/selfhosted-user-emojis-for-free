@@ -744,6 +744,11 @@ class EmojiCog(commands.Cog):
         removed = 0
         for name in emojis.keys():
             if name in self.emotes:
+                emoji_string = self.emotes[name]
+                match = re.match(r"<(a?):([^:]+):(\d+)>", emoji_string)
+                if match:
+                    emoji_id = match.group(3)
+                    await DiscordAPIHelper.request("DELETE", f"/emojis/{emoji_id}")
                 del self.emotes[name]
                 removed += 1
 
