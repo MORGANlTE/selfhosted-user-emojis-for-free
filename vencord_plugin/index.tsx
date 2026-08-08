@@ -620,15 +620,15 @@ export default definePlugin({
                 if (id === "999999999999999999") {
                     return {
                         id: "999999999999999999",
-                        name: "random",
-                        originalName: "random",
+                        name: "gift",
+                        originalName: "gift",
                         animated: false,
                         available: true,
                         managed: false,
                         require_colons: true,
                         roles: [],
                         url: `https://cdn.discordapp.com/emojis/847253503253245992.webp?size=64&quality=lossless`, // Fake placeholder image URL (a gift or cat icon)
-                        allNamesString: `:random:`,
+                        allNamesString: `:gift:`,
                         type: 3,
                         category: USER_PICKER_CATEGORY,
                         categoryName: USER_PICKER_CATEGORY,
@@ -770,15 +770,22 @@ export default definePlugin({
                             colonName: string,
                             semiName: string,
                         ) => {
+                            if (_tagId === "999999999999999999") {
+                                hasAppEmoji = true;
+                                return `;random;`;
+                            }
+                            if (semiName === "random") {
+                                hasAppEmoji = true;
+                                return `;random;`;
+                            }
                             const rawName = (
                                 tagName ||
                                 colonName ||
                                 semiName ||
                                 ""
                             ).toLowerCase();
-                            if (rawName === "random") {
-                                hasAppEmoji = true;
-                                return `;random;`;
+                            if (rawName === "gift" && _tagId !== "999999999999999999" && semiName !== "gift") {
+                                return match;
                             }
                             const found = pluginStore.loadedEmojis.get(rawName);
                             if (!found) return match;
