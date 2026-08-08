@@ -50,8 +50,15 @@ async def setup_hook():
         print(f"[!] Failed to load extension cogs.emoji_cog: {e}")
 
     # 2. Load private cogs safely (if the folder exists & contains files)
-    # The user asked: "Ignore cogs in the private/ folder."
-    pass
+    private_cogs_path = "cogs/private"
+    for filename in os.listdir(private_cogs_path):
+        if filename.endswith(".py") and not filename.startswith("__"):
+            module_name = f"cogs.private.{filename[:-3]}"
+            try:
+                await bot.load_extension(module_name)
+                print(f"[+] Loaded private extension: {module_name}")
+            except Exception as e:
+                print(f"[!] Failed to load private extension {module_name}: {e}")
 
     # Sync slash commands with Discord API
     await bot.tree.sync()
