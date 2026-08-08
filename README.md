@@ -12,6 +12,7 @@
   </p>
   
 A self-hosted solution for custom emojis in Discord (for free! No Nitro required). Combines a **Discord.py Backend** & **Vencord Frontend Plugin** to give you free custom emojis globally. <br/><br/>
+Note: current Readme file is AI generated. Will fix this in (one of the) next update(s). For now mostly vibe coded due to time constraints.
 
 ## Star History
 
