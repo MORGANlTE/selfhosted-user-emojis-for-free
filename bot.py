@@ -42,23 +42,12 @@ async def on_app_command_error(
 
 @bot.event
 async def setup_hook():
-    modules = {
-        "ENABLE_EMOJI_COMMANDS": ("cogs.emoji_cog", True),
-        "ENABLE_FUN_COMMANDS": ("cogs.fun_cog", False),
-        "ENABLE_POKEMON_COMMANDS": ("cogs.pokemon_cog", False),
-        "ENABLE_UTILITY_COMMANDS": ("cogs.utility_cog", False),
-    }
-
-    # 1. Load standard public modules
-    for env_var, (extension, default_state) in modules.items():
-        if is_module_enabled(env_var, default=default_state):
-            try:
-                await bot.load_extension(extension)
-                print(f"[+] Loaded extension: {extension}")
-            except Exception as e:
-                print(f"[!] Failed to load extension {extension}: {e}")
-        else:
-            print(f"[-] Skipped extension: {extension} (Disabled)")
+    # enable module cogs.emoji_cog
+    try:
+        await bot.load_extension("cogs.emoji_cog")
+        print("[+] Loaded extension: cogs.emoji_cog")
+    except Exception as e:
+        print(f"[!] Failed to load extension 'cogs.emoji_cog': {e}")
 
     # 2. Load private cogs safely (if the folder exists & contains files)
     private_dir = os.path.join("cogs", "private")

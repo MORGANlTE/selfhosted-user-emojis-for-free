@@ -61,14 +61,7 @@ APP_ID=YOUR_APP_ID
 GITHUB_TOKEN=your_github_token
 GIST_ID=your_gist_id
 OWNER_IDs=123456789012345, 1234567898765
-
-ENABLE_EMOJI_COMMANDS=true
-ENABLE_FUN_COMMANDS=false
-ENABLE_POKEMON_COMMANDS=false
-ENABLE_UTILITY_COMMANDS=false
 ```
-
-Enable/disable the extensions you want
 
 ### 4. Start the bot (on a server)
 
