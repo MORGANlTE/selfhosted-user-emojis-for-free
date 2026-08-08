@@ -731,6 +731,88 @@ class EmojiCog(commands.Cog):
     # /esync
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.allowed_installs(users=True, guilds=False)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.command(
+        name="installpack",
+        description="Install an emoji pack directly from the marketplace.",
+    )
+    @app_commands.describe(pack_name="The exact name of the pack to install")
+    async def installpack(
+        self,
+        inter: discord.Interaction,
+        pack_name: str,
+    ):
+        await inter.response.defer(ephemeral=True)
+        import aiohttp
+
+        try:
+            # Fetch the index json where packs are hosted (fallback to gist if none)
+            async with aiohttp.ClientSession() as session:
+                async with session.get("https://gist.githubusercontent.com/MORGANlTE/b842222299fc6b6c1fdeca70db12674c/raw/2eaef1fbb7aa90dc6797be8ed2f1904ab48070c8/emojis.json") as resp:
+                    if resp.status != 200:
+                        await inter.followup.send("❌ Failed to contact the packs marketplace.", ephemeral=True)
+                        return
+                    packs = await resp.json()
+
+            pack = next((p for p in packs if p.get("name", "").lower() == pack_name.lower()), None)
+            if not pack:
+                await inter.followup.send(f"❌ Pack `{pack_name}` not found in the marketplace.", ephemeral=True)
+                return
+
+            emojis = pack.get("emojis", {})
+            if not emojis:
+                await inter.followup.send("❌ Pack has no emojis.", ephemeral=True)
+                return
+
+            added = 0
+            failed = 0
+
+            # Helper to safely determine uniqueness to prevent overlapping duplicate installs
+            def _is_installed(name):
+                return name in self.emotes
+
+            for name, tag in emojis.items():
+                if _is_installed(name):
+                    continue
+
+                match = re.match(r"<(a?):([^:]+):(\d+)>", tag)
+                if not match:
+                    continue
+
+                is_animated = bool(match.group(1))
+                emoji_id = match.group(3)
+
+                # Fetch image from Discord CDN
+                ext = "gif" if is_animated else "png"
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(f"https://cdn.discordapp.com/emojis/{emoji_id}.{ext}") as resp:
+                        if resp.status == 200:
+                            img_data = await resp.read()
+                            payload = {
+                                "name": name,
+                                "image": f"data:image/{ext};base64," + base64.b64encode(img_data).decode(),
+                            }
+                            status, data = await DiscordAPIHelper.request("POST", "/emojis", payload)
+                            if status == 201:
+                                self.emotes[name] = f"<{'a' if data.get('animated') else ''}:{name}:{data['id']}>"
+                                added += 1
+                            else:
+                                failed += 1
+                        else:
+                            failed += 1
+
+            self.save()
+            msg = f"✅ Successfully installed {added} emojis from **{pack['name']}**."
+            if failed > 0:
+                msg += f"\n❌ {failed} emojis failed to install."
+            if added == 0 and failed == 0:
+                msg = f"✅ All emojis from **{pack['name']}** were already installed!"
+
+            await inter.followup.send(msg, ephemeral=True)
+        except Exception as e:
+            await inter.followup.send(f"❌ Error installing pack: {e}", ephemeral=True)
+
     @app_commands.command(
         name="esync",
         description="Return your emoji cache as a JSON file for plugin sync.",

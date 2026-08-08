@@ -141,8 +141,8 @@ export function CustomEmojiStorePopout({
                             style={{
                                 padding: "8px",
                                 borderRadius: "4px",
-                                backgroundColor: "var(--background-tertiary)",
-                                color: "var(--text-normal)",
+                                backgroundColor: "#fff",
+                                color: "#000",
                                 border: "none",
                                 outline: "none",
                                 fontSize: "12px",
@@ -241,7 +241,7 @@ export function CustomEmojiStorePopout({
                                         const text = e.currentTarget.querySelector("span");
                                         if (text) text.style.opacity = "0";
                                     }}
-                                    title={`:${emoji.name}:`}
+
                                 >
                                     <img
                                         src={url}
@@ -298,9 +298,9 @@ export function CustomEmojiStorePopout({
                     backdropFilter: "blur(10px)",
                     transition: "all 0.3s ease"
                 }}>
-                    <div style={{ marginBottom: "16px", textAlign: "center" }}>
-                        <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: 0, color: "var(--brand-experiment)" }}>🛒 Morganite Packs Market</h2>
-                        <p style={{ fontSize: "12px", color: "#aaa", marginTop: "4px" }}>Discover and install community emoji packs instantly.</p>
+                    <div style={{ marginBottom: "20px", textAlign: "center" }}>
+                        <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: "0 0 10px 0", color: "var(--brand-experiment)" }}>🛒 Morganite Packs Market</h2>
+                        <p style={{ fontSize: "12px", color: "#aaa", margin: 0 }}>Discover and install community emoji packs instantly.</p>
                     </div>
 
                     {loadingPacks ? (
@@ -391,8 +391,10 @@ export function CustomEmojiStorePopout({
                                         disabled={isInstalled}
                                         onClick={() => {
                                             if (isInstalled) return;
-                                            // Trigger installation script or command
-                                            showToast("Packs must be installed via bot commands or manual sync in this version.", Toasts.Type.SUCCESS);
+                                            // Use draft system to prompt the install
+                                            onClose();
+                                            insertTextIntoChatInputBox(`/installpack pack_name:${pack.name}`);
+                                            showToast(`Drafted install command for ${pack.name}! Hit enter in chat to begin.`, Toasts.Type.SUCCESS);
                                         }}
                                         style={{ width: "100%" }}
                                     >
