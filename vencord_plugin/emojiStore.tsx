@@ -16,26 +16,19 @@ export function CustomEmojiStorePopout({
     React.useEffect(() => {
         if (activeTab === "store" && storePacks.length === 0) {
             setLoadingPacks(true);
-            // Example repository where the pack maker stores the json output:
-            // "tell me in a comment where i put the packs in what json file or what or where?"
-            // You can upload the output JSON files from `helpers/pack_maker.py` into a Github Gist,
-            // or a Github repository. Update this URL to point to a raw JSON array of pack links or content:
-            // e.g., https://raw.githubusercontent.com/YourName/YourRepo/main/packs/index.json
-            fetch("https://gist.githubusercontent.com/MORGANlTE/b842222299fc6b6c1fdeca70db12674c/raw/2eaef1fbb7aa90dc6797be8ed2f1904ab48070c8/emojis.json")
-                .then(r => r.json())
-                .catch(() => {
-                    // MOCK fallback for demo since no repo exists yet
-                    return [{
-                        name: "catspack",
-                        description: "A cute pack of cats!",
-                        emojis: {
-                            "catspack_smirk": "<:smirk:12345>",
-                            "catspack_wave": "<a:wave:67890>"
-                        }
-                    }];
-                })
-                .then(data => setStorePacks(data))
-                .finally(() => setLoadingPacks(false));
+            // Discord's CSP blocks raw gist/github fetch requests natively via `fetch()`.
+            // Instead of fetching from GitHub, we import the local JSON file.
+            // You can update `packs_index.json` in your plugin folder directly!
+            try {
+                // We use require to let Webpack bundle the JSON file statically
+                const localPacks = require("./packs_index.json");
+                setStorePacks(Array.isArray(localPacks) ? localPacks : []);
+            } catch (e) {
+                console.error("Failed to load local packs_index.json", e);
+                setStorePacks([]);
+            } finally {
+                setLoadingPacks(false);
+            }
         }
     }, [activeTab]);
 
@@ -106,19 +99,16 @@ export function CustomEmojiStorePopout({
                             }}>
                             {pluginStore.getSetting?.("storeName") || "💎 Custom Emojis"}
                         </h3>
-                        <h3
-                            onClick={() => setActiveTab("store")}
-                            style={{
-                                color: activeTab === "store" ? "#fff" : "#aaa",
-                                margin: 0,
-                                fontSize: "16px",
-                                fontWeight: 600,
-                                cursor: "pointer"
-                            }}>
-                            🛍️ Packs Store
-                        </h3>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <Button
+                            size={Button.Sizes.MIN}
+                            color={activeTab === "store" ? Button.Colors.BRAND : Button.Colors.PRIMARY}
+                            onClick={() => setActiveTab(activeTab === "store" ? "emojis" : "store")}
+                            style={{ padding: "0 8px" }}
+                        >
+                            🛍️
+                        </Button>
                         {pluginStore.isSyncing && <div style={{ color: "#aaa", fontSize: "12px" }}>Loading...</div>}
                         <Button
                             size={Button.Sizes.MIN}
@@ -171,8 +161,8 @@ export function CustomEmojiStorePopout({
                                 flex: 1,
                                 padding: "8px",
                                 borderRadius: "4px",
-                                backgroundColor: "var(--background-tertiary)",
-                                color: "var(--text-normal)",
+                                backgroundColor: "#fff",
+                                color: "#000",
                                 border: "none",
                                 outline: "none",
                                 fontSize: "14px",
