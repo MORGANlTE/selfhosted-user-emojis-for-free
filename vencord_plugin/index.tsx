@@ -631,6 +631,26 @@ export default definePlugin({
         // --- MESSAGE DISPATCH INTERCEPTOR ---
         patcherManager.instead(
             MessageActions,
+            "startEditMessage",
+            (args, orig, thisObj) => {
+                const [channelId, messageId, content] = args;
+                if (content && pluginStore.loadedEmojis.size > 0) {
+                    // Turn ;wavey; back into native format so the editor shows the emoji
+                    const newContent = String(content).replace(/;([A-Za-z0-9_]+);/g, (match, name) => {
+                        const emoji = pluginStore.loadedEmojis.get(name.toLowerCase());
+                        if (emoji) {
+                            return `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
+                        }
+                        return match;
+                    });
+                    args[2] = newContent;
+                }
+                return orig.apply(thisObj, args);
+            }
+        );
+
+        patcherManager.instead(
+            MessageActions,
             "editMessage",
             async (args, orig, thisObj) => {
                 const [channelId, messageId, message] = args;
