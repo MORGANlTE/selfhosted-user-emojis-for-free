@@ -18,8 +18,7 @@ from helpers.api import DiscordAPIHelper
 EMOJI_FILE = "emojis.json"
 PAT = re.compile(r";([A-Za-z0-9_]+);")
 
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-GIST_ID = os.getenv("GIST_ID")
+
 
 class RenameEmojiModal(discord.ui.Modal, title="Rename Emoji"):
     def __init__(self, cog: "EmojiCog", emoji_id: str, old_name: str, is_animated: bool):
@@ -692,6 +691,67 @@ class EmojiCog(commands.Cog):
     # /esync
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.command(
+        name="uninstallpack",
+        description="Uninstall an emoji pack and remove its emojis.",
+    )
+    @app_commands.describe(pack_name="The exact name of the pack to uninstall")
+    @app_commands.autocomplete(pack_name=pack_name_autocomplete)
+    async def uninstallpack(
+        self,
+        inter: discord.Interaction,
+        pack_name: str,
+    ):
+        await inter.response.defer(ephemeral=True)
+        import os, json
+
+        packs_file = "vencord_plugin/packs_index.json"
+        if not os.path.exists(packs_file):
+            await inter.followup.send("❌ Packs index file not found.", ephemeral=True)
+            return
+
+        with open(packs_file, "r", encoding="utf-8") as f:
+            packs = json.load(f)
+
+        pack = next((p for p in packs if p.get("name", "").lower() == pack_name.lower()), None)
+        if not pack:
+            await inter.followup.send(f"❌ Pack `{pack_name}` not found in the marketplace.", ephemeral=True)
+            return
+
+        emojis = pack.get("emojis", {})
+        if not emojis:
+            await inter.followup.send("❌ Pack has no emojis.", ephemeral=True)
+            return
+
+        removed = 0
+        for name in emojis.keys():
+            if name in self.emotes:
+                del self.emotes[name]
+                removed += 1
+
+        self.save()
+        await inter.followup.send(f"✅ Successfully uninstalled **{pack['name']}**, removing {removed} emojis.", ephemeral=True)
+
+    @app_commands.allowed_installs(users=True, guilds=False)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def pack_name_autocomplete(self, inter: discord.Interaction, current: str):
+        import os, json
+        choices = []
+        packs_file = "vencord_plugin/packs_index.json"
+        if os.path.exists(packs_file):
+            try:
+                with open(packs_file, "r", encoding="utf-8") as f:
+                    packs = json.load(f)
+                for p in packs:
+                    name = p.get("name", "")
+                    if current.lower() in name.lower():
+                        choices.append(app_commands.Choice(name=name, value=name))
+                        if len(choices) >= 25:
+                            break
+            except:
+                pass
+        return choices
+
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.command(
@@ -699,6 +759,7 @@ class EmojiCog(commands.Cog):
         description="Install an emoji pack directly from the marketplace.",
     )
     @app_commands.describe(pack_name="The exact name of the pack to install")
+    @app_commands.autocomplete(pack_name=pack_name_autocomplete)
     async def installpack(
         self,
         inter: discord.Interaction,

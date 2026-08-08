@@ -2,10 +2,13 @@
 __pycache__/
 */__pycache__/
 */__pycache__/*
-*.json
+
 .vscode/settings.json
 # Private cogs directory (ignored in git)
 cogs/private/*.py
 !cogs/private/*.example.py
 !cogs/private/.gitkeep
-/helpers/private/*.py
+helpers/private/*.py
+!helpers/private/*.example.py
+
+helpers/private/*.py

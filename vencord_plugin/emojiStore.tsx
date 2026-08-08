@@ -13,6 +13,17 @@ export function CustomEmojiStorePopout({
     const [storePacks, setStorePacks] = React.useState<any[]>([]);
     const [loadingPacks, setLoadingPacks] = React.useState(false);
 
+    // Random emoji state moved to top level to avoid React Error 300
+    const allEmojisArr = Array.from(pluginStore.loadedEmojis.values());
+    const [randomEmoji, setRandomEmoji] = React.useState<any>(allEmojisArr[0] || { name: "random", id: "" });
+    React.useEffect(() => {
+        if (allEmojisArr.length === 0) return;
+        const interval = setInterval(() => {
+            setRandomEmoji(allEmojisArr[Math.floor(Math.random() * allEmojisArr.length)]);
+        }, 800);
+        return () => clearInterval(interval);
+    }, [pluginStore.loadedEmojis.size]);
+
     React.useEffect(() => {
         if (activeTab === "store" && storePacks.length === 0) {
             setLoadingPacks(true);
@@ -55,7 +66,7 @@ export function CustomEmojiStorePopout({
     const handleSelect = (emoji: any, event: any) => {
         try {
             if (emoji.isRandom) {
-                insertTextIntoChatInputBox(`;random; `);
+                insertTextIntoChatInputBox(`<:random:999999999999999999> `);
             } else {
                 const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}> `;
                 insertTextIntoChatInputBox(textToInsert);
@@ -186,97 +197,80 @@ export function CustomEmojiStorePopout({
                             borderRadius: "4px"
                         }}
                     >
-                        {search === "" && selectedPack === "All" && (() => {
-                            // Render the random emoji button at the very top left
-                            const [randomEmoji, setRandomEmoji] = React.useState<any>(allEmojis[0] || { name: "random", id: "" });
-                            React.useEffect(() => {
-                                if (allEmojis.length === 0) return;
-                                const interval = setInterval(() => {
-                                    setRandomEmoji(allEmojis[Math.floor(Math.random() * allEmojis.length)]);
-                                }, 800);
-                                return () => clearInterval(interval);
-                            }, [allEmojis]);
-
-                            const url = randomEmoji.id ? `https://cdn.discordapp.com/emojis/${randomEmoji.id}?size=48&quality=lossless${randomEmoji.animated ? "&animated=true" : ""}` : "";
-
-                            return (
-                                <div
-                                    key="random-emoji"
-                                    onClick={(e: any) => handleSelect({ name: "random", id: "random", animated: false, isRandom: true }, e)}
-                                    style={{
-                                        cursor: "pointer",
-                                        borderRadius: "4px",
-                                        padding: "0",
-                                        width: "40px",
-                                        height: "40px",
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        justifyContent: "center",
-                                        alignItems: "center",
-                                        backgroundColor: "transparent",
-                                        transition: "background-color 0.1s ease",
-                                        position: "relative"
-                                    }}
-                                    onMouseEnter={(e: any) => {
-                                        e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)";
-                                        const img = e.currentTarget.querySelector("img");
-                                        if (img) img.style.transform = "scale(1.15)";
-                                        const text = e.currentTarget.querySelector("span");
-                                        if (text) text.style.opacity = "1";
-                                    }}
-                                    onMouseLeave={(e: any) => {
-                                        e.currentTarget.style.backgroundColor = "transparent";
-                                        const img = e.currentTarget.querySelector("img");
-                                        if (img) img.style.transform = "scale(1)";
-                                        const text = e.currentTarget.querySelector("span");
-                                        if (text) text.style.opacity = "0";
-                                    }}
-                                    title=":random:"
-                                >
-                                    <div style={{ position: "relative", width: "32px", height: "32px" }}>
-                                        {url ? (
-                                            <img
-                                                src={url}
-                                                alt="random"
-                                                draggable={false}
-                                                style={{
-                                                    width: "100%",
-                                                    height: "100%",
-                                                    objectFit: "contain",
-                                                    transition: "transform 0.1s ease",
-                                                    opacity: 0.6
-                                                }}
-                                            />
-                                        ) : (
-                                            <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px"}}>❓</div>
-                                        )}
-                                        <div style={{
-                                            position: "absolute",
-                                            top: "50%", left: "50%",
-                                            transform: "translate(-50%, -50%)",
-                                            fontSize: "20px",
-                                            textShadow: "0 0 4px #000"
-                                        }}>❓</div>
-                                    </div>
-                                    <span style={{
-                                        opacity: 0,
+                        {search === "" && selectedPack === "All" && (
+                            <div
+                                key="random-emoji"
+                                onClick={(e: any) => handleSelect({ name: "random", id: "random", animated: false, isRandom: true }, e)}
+                                style={{
+                                    cursor: "pointer",
+                                    borderRadius: "4px",
+                                    padding: "0",
+                                    width: "40px",
+                                    height: "40px",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    backgroundColor: "transparent",
+                                    transition: "background-color 0.1s ease",
+                                    position: "relative"
+                                }}
+                                onMouseEnter={(e: any) => {
+                                    e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)";
+                                    const img = e.currentTarget.querySelector("img");
+                                    if (img) img.style.transform = "scale(1.15)";
+                                    const text = e.currentTarget.querySelector("span");
+                                    if (text) text.style.opacity = "1";
+                                }}
+                                onMouseLeave={(e: any) => {
+                                    e.currentTarget.style.backgroundColor = "transparent";
+                                    const img = e.currentTarget.querySelector("img");
+                                    if (img) img.style.transform = "scale(1)";
+                                    const text = e.currentTarget.querySelector("span");
+                                    if (text) text.style.opacity = "0";
+                                }}
+                            >
+                                <div style={{ position: "relative", width: "32px", height: "32px" }}>
+                                    {randomEmoji.id ? (
+                                        <img
+                                            src={`https://cdn.discordapp.com/emojis/${randomEmoji.id}?size=48&quality=lossless${randomEmoji.animated ? "&animated=true" : ""}`}
+                                            alt="random"
+                                            draggable={false}
+                                            style={{
+                                                width: "100%",
+                                                height: "100%",
+                                                objectFit: "contain",
+                                                transition: "transform 0.1s ease",
+                                                opacity: 0.6
+                                            }}
+                                        />
+                                    ) : null}
+                                    <div style={{
                                         position: "absolute",
-                                        bottom: "-20px",
-                                        fontSize: "10px",
-                                        color: "#fff",
-                                        whiteSpace: "nowrap",
-                                        pointerEvents: "none",
-                                        transition: "opacity 0.1s ease",
-                                        background: "rgba(0,0,0,0.8)",
-                                        padding: "2px 4px",
-                                        borderRadius: "4px",
-                                        zIndex: 9999
-                                    }}>
-                                        random
-                                    </span>
+                                        top: "50%", left: "50%",
+                                        transform: "translate(-50%, -50%)",
+                                        fontSize: "20px",
+                                        textShadow: "0 0 4px #000"
+                                    }}>🎁</div>
                                 </div>
-                            );
-                        })()}
+                                <span style={{
+                                    opacity: 0,
+                                    position: "absolute",
+                                    bottom: "-20px",
+                                    fontSize: "10px",
+                                    color: "#fff",
+                                    whiteSpace: "nowrap",
+                                    pointerEvents: "none",
+                                    transition: "opacity 0.1s ease",
+                                    background: "rgba(0,0,0,0.8)",
+                                    padding: "2px 4px",
+                                    borderRadius: "4px",
+                                    zIndex: 9999
+                                }}>
+                                    random
+                                </span>
+                            </div>
+                        )}
                         {filtered.map((emoji: any) => {
                             const url = `https://cdn.discordapp.com/emojis/${emoji.id}?size=48&quality=lossless${emoji.animated ? "&animated=true" : ""}`;
                             return (
@@ -479,21 +473,35 @@ export function CustomEmojiStorePopout({
                                         )}
                                     </div>
 
-                                    <Button
-                                        size={Button.Sizes.SMALL}
-                                        color={isInstalled ? Button.Colors.GREEN : Button.Colors.BRAND}
-                                        disabled={isInstalled}
-                                        onClick={() => {
-                                            if (isInstalled) return;
-                                            // Use draft system to prompt the install
-                                            onClose();
-                                            insertTextIntoChatInputBox(`/installpack pack_name:${pack.name}`);
-                                            showToast(`Drafted install command for ${pack.name}! Hit enter in chat to begin.`, Toasts.Type.SUCCESS);
-                                        }}
-                                        style={{ width: "100%" }}
-                                    >
-                                        {isInstalled ? "✅ Installed" : "📥 Install Pack"}
-                                    </Button>
+                                    <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+                                        <Button
+                                            size={Button.Sizes.SMALL}
+                                            color={isInstalled ? Button.Colors.GREEN : Button.Colors.BRAND}
+                                            disabled={isInstalled}
+                                            onClick={() => {
+                                                if (isInstalled) return;
+                                                onClose();
+                                                insertTextIntoChatInputBox(`/installpack pack_name:${pack.name}`);
+                                                showToast(`Drafted install command for ${pack.name}! Hit enter in chat to begin.`, Toasts.Type.SUCCESS);
+                                            }}
+                                            style={{ flex: 1 }}
+                                        >
+                                            {isInstalled ? "✅ Installed" : "📥 Install Pack"}
+                                        </Button>
+                                        {isInstalled && (
+                                            <Button
+                                                size={Button.Sizes.SMALL}
+                                                color={Button.Colors.RED}
+                                                onClick={() => {
+                                                    onClose();
+                                                    insertTextIntoChatInputBox(`/uninstallpack pack_name:${pack.name}`);
+                                                    showToast(`Drafted uninstall command for ${pack.name}! Hit enter to remove.`, Toasts.Type.SUCCESS);
+                                                }}
+                                            >
+                                                🗑️ Uninstall
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             );
                         })

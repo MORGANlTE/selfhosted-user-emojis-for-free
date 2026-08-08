@@ -1,0 +1,11 @@
+[
+    {
+        "name": "Cat Emotes",
+        "description": "A collection of cute cat emojis.",
+        "icon": "<a:catscared:1535406409452359680>",
+        "emojis": {
+            "catspack_smirk": "<:smirk:12345>",
+            "cats_catscared": "<a:catscared:1535406409452359680>"
+        }
+    }
+]
