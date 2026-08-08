@@ -243,46 +243,7 @@ class EmojiCog(commands.Cog):
         with open(EMOJI_FILE, "w", encoding="utf8") as f:
             json.dump(self.emotes, f, indent=2)
 
-    async def sync_to_gist(self):
-        """Pushes the current formatted emotes list directly to GitHub Gist."""
-        if not GITHUB_TOKEN or not GIST_ID:
-            return
 
-        formatted_emojis = []
-        for name, tag in self.emotes.items():
-            match = re.match(r"<(a?):([^:]+):(\d+)>", tag)
-            if match:
-                formatted_emojis.append({
-                    "id": match.group(3),
-                    "name": name,
-                    "animated": bool(match.group(1))
-                })
-
-        url = f"https://api.github.com/gists/{GIST_ID}"
-        headers = {
-            "Authorization": f"Bearer {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "MyDiscordBot/1.0",
-            "X-GitHub-Api-Version": "2022-11-28"
-        }
-        payload = {
-            "files": {
-                "emojis.json": {
-                    "content": json.dumps(formatted_emojis, indent=2)
-                }
-            }
-        }
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.patch(url, json=payload, headers=headers) as resp:
-                    if resp.status == 200:
-                        print(f"[+] Synced {len(formatted_emojis)} emojis to GitHub Gist!")
-                    else:
-                        text = await resp.text()
-                        print(f"[!] Gist sync failed ({resp.status}): {text}")
-        except Exception as e:
-            print(f"[!] Gist sync exception: {e}")
 
     async def refresh_emojis(self):
         status, data = await DiscordAPIHelper.request("GET", "/emojis")
@@ -537,9 +498,6 @@ class EmojiCog(commands.Cog):
             f"Loaded {len(self.emotes)} emojis.", ephemeral=True
         )
 
-    # /addemoji
-    @app_commands.allowed_installs(users=True, guilds=False)
-    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     def _get_unique_name(self, base_name: str) -> str:
         """Finds a unique name by appending numbers if it already exists."""
         if base_name not in self.emotes:
@@ -549,6 +507,9 @@ class EmojiCog(commands.Cog):
             counter += 1
         return f"{base_name}{counter}"
 
+    # /addemoji
+    @app_commands.allowed_installs(users=True, guilds=False)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.command(name="addemoji", description="Add a new emoji from image or zip")
     @app_commands.describe(name="Emoji name (ignored for zip)", file="PNG/GIF image or ZIP file")
     async def addemoji(
@@ -747,13 +708,13 @@ class EmojiCog(commands.Cog):
         import aiohttp
 
         try:
-            # Fetch the index json where packs are hosted (fallback to gist if none)
-            async with aiohttp.ClientSession() as session:
-                async with session.get("https://gist.githubusercontent.com/MORGANlTE/b842222299fc6b6c1fdeca70db12674c/raw/2eaef1fbb7aa90dc6797be8ed2f1904ab48070c8/emojis.json") as resp:
-                    if resp.status != 200:
-                        await inter.followup.send("❌ Failed to contact the packs marketplace.", ephemeral=True)
-                        return
-                    packs = await resp.json()
+            # We now load packs natively from the vencord plugin folder
+            packs_file = "vencord_plugin/packs_index.json"
+            if not os.path.exists(packs_file):
+                await inter.followup.send("❌ Packs index file not found.", ephemeral=True)
+                return
+            with open(packs_file, "r", encoding="utf-8") as f:
+                packs = json.load(f)
 
             pack = next((p for p in packs if p.get("name", "").lower() == pack_name.lower()), None)
             if not pack:

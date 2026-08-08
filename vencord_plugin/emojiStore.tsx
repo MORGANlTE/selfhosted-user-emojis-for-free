@@ -54,11 +54,14 @@ export function CustomEmojiStorePopout({
 
     const handleSelect = (emoji: any, event: any) => {
         try {
-            // insertTextIntoChatInputBox naturally parses the text if it corresponds to an ID in EmojiStore
-            const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}> `;
-            insertTextIntoChatInputBox(textToInsert);
+            if (emoji.isRandom) {
+                insertTextIntoChatInputBox(`;random; `);
+            } else {
+                const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}> `;
+                insertTextIntoChatInputBox(textToInsert);
+            }
         } catch (e) {
-            const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
+            const textToInsert = emoji.isRandom ? `;random;` : `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
             navigator.clipboard.writeText(textToInsert);
             showToast("Copied to clipboard!", Toasts.Type.SUCCESS);
         }
@@ -183,6 +186,97 @@ export function CustomEmojiStorePopout({
                             borderRadius: "4px"
                         }}
                     >
+                        {search === "" && selectedPack === "All" && (() => {
+                            // Render the random emoji button at the very top left
+                            const [randomEmoji, setRandomEmoji] = React.useState<any>(allEmojis[0] || { name: "random", id: "" });
+                            React.useEffect(() => {
+                                if (allEmojis.length === 0) return;
+                                const interval = setInterval(() => {
+                                    setRandomEmoji(allEmojis[Math.floor(Math.random() * allEmojis.length)]);
+                                }, 800);
+                                return () => clearInterval(interval);
+                            }, [allEmojis]);
+
+                            const url = randomEmoji.id ? `https://cdn.discordapp.com/emojis/${randomEmoji.id}?size=48&quality=lossless${randomEmoji.animated ? "&animated=true" : ""}` : "";
+
+                            return (
+                                <div
+                                    key="random-emoji"
+                                    onClick={(e: any) => handleSelect({ name: "random", id: "random", animated: false, isRandom: true }, e)}
+                                    style={{
+                                        cursor: "pointer",
+                                        borderRadius: "4px",
+                                        padding: "0",
+                                        width: "40px",
+                                        height: "40px",
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        backgroundColor: "transparent",
+                                        transition: "background-color 0.1s ease",
+                                        position: "relative"
+                                    }}
+                                    onMouseEnter={(e: any) => {
+                                        e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)";
+                                        const img = e.currentTarget.querySelector("img");
+                                        if (img) img.style.transform = "scale(1.15)";
+                                        const text = e.currentTarget.querySelector("span");
+                                        if (text) text.style.opacity = "1";
+                                    }}
+                                    onMouseLeave={(e: any) => {
+                                        e.currentTarget.style.backgroundColor = "transparent";
+                                        const img = e.currentTarget.querySelector("img");
+                                        if (img) img.style.transform = "scale(1)";
+                                        const text = e.currentTarget.querySelector("span");
+                                        if (text) text.style.opacity = "0";
+                                    }}
+                                    title=":random:"
+                                >
+                                    <div style={{ position: "relative", width: "32px", height: "32px" }}>
+                                        {url ? (
+                                            <img
+                                                src={url}
+                                                alt="random"
+                                                draggable={false}
+                                                style={{
+                                                    width: "100%",
+                                                    height: "100%",
+                                                    objectFit: "contain",
+                                                    transition: "transform 0.1s ease",
+                                                    opacity: 0.6
+                                                }}
+                                            />
+                                        ) : (
+                                            <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px"}}>❓</div>
+                                        )}
+                                        <div style={{
+                                            position: "absolute",
+                                            top: "50%", left: "50%",
+                                            transform: "translate(-50%, -50%)",
+                                            fontSize: "20px",
+                                            textShadow: "0 0 4px #000"
+                                        }}>❓</div>
+                                    </div>
+                                    <span style={{
+                                        opacity: 0,
+                                        position: "absolute",
+                                        bottom: "-20px",
+                                        fontSize: "10px",
+                                        color: "#fff",
+                                        whiteSpace: "nowrap",
+                                        pointerEvents: "none",
+                                        transition: "opacity 0.1s ease",
+                                        background: "rgba(0,0,0,0.8)",
+                                        padding: "2px 4px",
+                                        borderRadius: "4px",
+                                        zIndex: 9999
+                                    }}>
+                                        random
+                                    </span>
+                                </div>
+                            );
+                        })()}
                         {filtered.map((emoji: any) => {
                             const url = `https://cdn.discordapp.com/emojis/${emoji.id}?size=48&quality=lossless${emoji.animated ? "&animated=true" : ""}`;
                             return (
@@ -298,8 +392,8 @@ export function CustomEmojiStorePopout({
                     backdropFilter: "blur(10px)",
                     transition: "all 0.3s ease"
                 }}>
-                    <div style={{ marginBottom: "20px", textAlign: "center" }}>
-                        <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: "0 0 10px 0", color: "var(--brand-experiment)" }}>🛒 Morganite Packs Market</h2>
+                    <div style={{ marginBottom: "24px", textAlign: "center" }}>
+                        <h2 style={{ fontSize: "18px", fontWeight: "bold", margin: "0 0 12px 0", color: "var(--brand-experiment)" }}>🛒 Pack Market</h2>
                         <p style={{ fontSize: "12px", color: "#aaa", margin: 0 }}>Discover and install community emoji packs instantly.</p>
                     </div>
 

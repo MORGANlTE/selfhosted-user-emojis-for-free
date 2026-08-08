@@ -34,7 +34,7 @@ def create_pack():
         with open(filename, "w") as f:
             json.dump(emojis, f, indent=4)
         print(f"Successfully created pack {filename} with {len(emojis)} emojis.")
-        print("You can now upload this JSON file to GitHub Gist to share it.")
+        print("You can now distribute this JSON pack structure to users locally.")
 
 if __name__ == "__main__":
     create_pack()
