@@ -55,12 +55,14 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
 
   const allEmojis = Array.from(pluginStore.loadedEmojis.values());
 
+  const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
+
   // Extract unique packs by checking for the `packname_` prefix convention
   const packs = Array.from(
     new Set(
       allEmojis.map((e: any) => {
         const parts = e.name.split("_");
-        return parts.length > 1 ? parts[0] : "Other";
+        return parts.length > 1 ? capitalize(parts[0]) : "Other";
       }),
     ),
   ).sort();
@@ -74,13 +76,13 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
 
     const parts = e.name.split("_");
     const packName = parts.length > 1 ? parts[0] : "Other";
-    return packName === selectedPack;
+    return packName.toLowerCase() === selectedPack.toLowerCase();
   });
 
   const handleSelect = (emoji: any, event: any) => {
     try {
       if (emoji.isRandom) {
-        insertTextIntoChatInputBox(`<:random:999999999999999999> `);
+        insertTextIntoChatInputBox(`<:gift:999999999999999999> `);
       } else {
         const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}> `;
         insertTextIntoChatInputBox(textToInsert);
@@ -101,8 +103,8 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
   return (
     <div
       style={{
-        width: "350px",
-        height: "400px",
+        width: "420px",
+        height: "450px",
         backgroundImage: `url(${pluginStore.getSetting?.("storeBackground") || "https://i.pinimg.com/236x/2c/cd/9d/2ccd9d9501e6ecbcca340a868ddd1184.jpg"})`,
         backgroundSize: "cover",
         border: "1px solid var(--background-tertiary)",
@@ -263,6 +265,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
               gridTemplateColumns: "repeat(auto-fill, minmax(40px, 1fr))",
               gap: "8px",
               overflowY: "auto",
+              overflowX: "hidden",
               padding: "12px",
               flex: 1,
               backgroundColor: "rgba(0,0,0,0.6)",
@@ -275,8 +278,8 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
                 onClick={(e: any) =>
                   handleSelect(
                     {
-                      name: "random",
-                      id: "random",
+                      name: "gift",
+                      id: "999999999999999999",
                       animated: false,
                       isRandom: true,
                     },
@@ -488,6 +491,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
           style={{
             padding: "16px",
             overflowY: "auto",
+            overflowX: "hidden",
             flex: 1,
             backgroundColor: "rgba(20,20,25,0.95)",
             color: "#fff",
@@ -616,7 +620,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
                             color: "var(--header-primary)",
                           }}
                         >
-                          {pack.name}
+                          {capitalize(pack.name)}
                         </h4>
                         <p
                           style={{
