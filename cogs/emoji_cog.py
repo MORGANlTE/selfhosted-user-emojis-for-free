@@ -748,12 +748,7 @@ class EmojiCog(commands.Cog):
                 match = re.match(r"<(a?):([^:]+):(\d+)>", emoji_string)
                 if match:
                     emoji_id = match.group(3)
-                    app_id = os.environ.get("APP_ID")
-                    if app_id:
-                        try:
-                            await self.bot.http.request(discord.http.Route("DELETE", f"/applications/{app_id}/emojis/{emoji_id}"))
-                        except Exception:
-                            pass
+                    await DiscordAPIHelper.request("DELETE", f"/emojis/{emoji_id}")
                 del self.emotes[name]
                 removed += 1
 
