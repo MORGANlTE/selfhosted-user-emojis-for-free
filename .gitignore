@@ -2,9 +2,13 @@
 __pycache__/
 */__pycache__/
 */__pycache__/*
-emojis.json
-pokemon_history.json
+
 .vscode/settings.json
 cogs/private/*.py
-*.json
+!cogs/private/*.example.py
+!cogs/private/.gitkeep
 helpers/private/*.py
+!helpers/private/*.example.py
+helpers/private/*.py
+*.json
+!vencord_plugins/packs_index.json

@@ -27,40 +27,38 @@ async def on_app_command_error(
     if isinstance(error, app_commands.CommandInvokeError):
         error = error.original
 
-    # Handle failed checks (like our owner check)
+    # Handle failed checks (like owner check)
     if isinstance(error, app_commands.CheckFailure):
-        # Only attempt to respond if the interaction hasn't already been answered
         if not interaction.response.is_done():
             await interaction.response.send_message(
                 "❌ Access denied: This is a private user application.",
                 ephemeral=True
             )
             print(f"Access denied for user {interaction.user} (ID: {interaction.user.id})")
-
-        # Suppress the console stack trace for blocked users
         return
 
-    # Log true runtime errors (bugs, missing permissions, API exceptions)
+    # Log true runtime errors
     print(f"[!] Unhandled App Command Error: {error}")
 
 @bot.event
 async def setup_hook():
-    modules = {
-        "ENABLE_EMOJI_COMMANDS": ("cogs.emoji_cog", True),
-        "ENABLE_FUN_COMMANDS": ("cogs.fun_cog", False),
-        "ENABLE_POKEMON_COMMANDS": ("cogs.pokemon_cog", False),
-        "ENABLE_UTILITY_COMMANDS": ("cogs.utility_cog", False),
-    }
+    # 1. Load standard public modules
+    try:
+        await bot.load_extension("cogs.emoji_cog")
+        print(f"[+] Loaded extension: cogs.emoji_cog")
+    except Exception as e:
+        print(f"[!] Failed to load extension cogs.emoji_cog: {e}")
 
-    for env_var, (extension, default_state) in modules.items():
-        if is_module_enabled(env_var, default=default_state):
+    # 2. Load private cogs safely (if the folder exists & contains files)
+    private_cogs_path = "cogs/private"
+    for filename in os.listdir(private_cogs_path):
+        if filename.endswith(".py") and not filename.startswith("__"):
+            module_name = f"cogs.private.{filename[:-3]}"
             try:
-                await bot.load_extension(extension)
-                print(f"[+] Loaded extension: {extension}")
+                await bot.load_extension(module_name)
+                print(f"[+] Loaded private extension: {module_name}")
             except Exception as e:
-                print(f"[!] Failed to load extension {extension}: {e}")
-        else:
-            print(f"[-] Skipped extension: {extension} (Disabled)")
+                print(f"[!] Failed to load private extension {module_name}: {e}")
 
     # Sync slash commands with Discord API
     await bot.tree.sync()
