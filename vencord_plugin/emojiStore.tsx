@@ -93,7 +93,7 @@ export function CustomEmojiStorePopout({
                 borderBottom: "1px solid rgba(0,0,0,0.3)",
                 backgroundColor: "rgba(0,0,0,0.5)"
             }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                         <h3
                             onClick={() => setActiveTab("emojis")}
@@ -133,170 +133,171 @@ export function CustomEmojiStorePopout({
                             color={Button.Colors.GREEN}
                             onClick={() => {
                                 onClose();
-                                // Instruct user how to add or implement Add logic directly if command exists
                                 ComponentDispatch.dispatchToLastSubscribed("INSERT_TEXT", { plainText: "/addemoji " });
                             }}
                         >
                             + Add
                         </Button>
                     </div>
-                </div>                {activeTab === "emojis" ? (
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                        <select
-                        value={selectedPack}
-                        onChange={(e: any) => setSelectedPack(e.target.value)}
-                        style={{
-                            padding: "8px",
-                            borderRadius: "4px",
-                            backgroundColor: "var(--background-tertiary)",
-                            color: "var(--text-normal)",
-                            border: "none",
-                            outline: "none",
-                            fontSize: "12px",
-                            cursor: "pointer",
-                            maxWidth: "100px"
-                        }}
-                    >
-                        {packs.map(pack => <option key={pack} value={pack}>{pack}</option>)}
-                    </select>
-                    <input
-                        type="text"
-                        placeholder={pluginStore.isSyncing ? "Syncing emojis..." : "Search custom emojis..."}
-                        value={search}
-                        onChange={(e: any) => setSearch(e.target.value)}
-                        style={{
-                            flex: 1,
-                            padding: "8px",
-                            borderRadius: "4px",
-                            backgroundColor: "var(--background-tertiary)",
-                            color: "var(--text-normal)",
-                            border: "none",
-                            outline: "none",
-                            fontSize: "14px",
-                            boxSizing: "border-box",
-                        }}
-                        autoFocus
-                    />
                 </div>
             </div>
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(40px, 1fr))",
-                    gap: "8px",
-                    overflowY: "auto",
-                    padding: "12px",
-                    flex: 1,
-                    backgroundColor: "rgba(0,0,0,0.6)"
-                }}
-            >
-                {filtered.map((emoji: any) => {
-                    // Try webp first, with fallback to png/gif logic handled dynamically or via onError
-                    const url = `https://cdn.discordapp.com/emojis/${emoji.id}?size=48&quality=lossless${emoji.animated ? "&animated=true" : ""}`;
-                    return (
-                        <div
-                            key={emoji.id}
-                            onClick={(e: any) => handleSelect(emoji, e)}
-                            onContextMenu={(e: any) => {
-                                e.preventDefault();
-                                ContextMenuApi.openContextMenu(e, () => (
-                                    <Menu.Menu navId="custom-emoji-context" onClose={ContextMenuApi.closeContextMenu}>
-                                        <Menu.MenuItem
-                                            id="rename-emoji"
-                                            label="Rename Emoji"
-                                            action={() => {
-                                                onClose();
-                                                // Using insertTextIntoChatInputBox will automatically trigger Discord's draft parser.
-                                                // By typing the text naturally it will often trigger slash command completion.
-                                                insertTextIntoChatInputBox(`/renameemoji old_name:${emoji.name} new_name:`);
-                                            }}
-                                        />
-                                        <Menu.MenuItem
-                                            id="delete-emoji"
-                                            label="Delete Emoji"
-                                            color="danger"
-                                            action={() => {
-                                                onClose();
-                                                insertTextIntoChatInputBox(`/deleteemoji name:${emoji.name}`);
-                                            }}
-                                        />
-                                    </Menu.Menu>
-                                ));
-                            }}
+
+            {activeTab === "emojis" ? (
+                <div style={{ padding: "12px", display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                        <select
+                            value={selectedPack}
+                            onChange={(e: any) => setSelectedPack(e.target.value)}
                             style={{
+                                padding: "8px",
+                                borderRadius: "4px",
+                                backgroundColor: "var(--background-tertiary)",
+                                color: "var(--text-normal)",
+                                border: "none",
+                                outline: "none",
+                                fontSize: "12px",
                                 cursor: "pointer",
-                                borderRadius: "4px",
-                                padding: "0", // Removed default padding so it stays static
-                                width: "40px",
-                                height: "40px",
-                                display: "flex",
-                                flexDirection: "column",
-                                justifyContent: "center",
-                                alignItems: "center",
-                                backgroundColor: "transparent",
-                                transition: "background-color 0.1s ease",
-                                position: "relative"
+                                maxWidth: "100px"
                             }}
-                            onMouseEnter={(e: any) => {
-                                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)";
-                                const img = e.currentTarget.querySelector("img");
-                                if (img) img.style.transform = "scale(1.15)";
-                                const text = e.currentTarget.querySelector("span");
-                                if (text) text.style.opacity = "1";
-                            }}
-                            onMouseLeave={(e: any) => {
-                                e.currentTarget.style.backgroundColor = "transparent";
-                                const img = e.currentTarget.querySelector("img");
-                                if (img) img.style.transform = "scale(1)";
-                                const text = e.currentTarget.querySelector("span");
-                                if (text) text.style.opacity = "0";
-                            }}
-                            title={`:${emoji.name}:`}
                         >
-                            <img
-                                src={url}
-                                alt={emoji.name}
-                                draggable={false}
-                                style={{
-                                    width: "32px",
-                                    height: "32px",
-                                    objectFit: "contain",
-                                    transition: "transform 0.1s ease",
-                                }}
-                            />
-                            <span style={{
-                                opacity: 0,
-                                position: "absolute",
-                                bottom: "-20px",
-                                fontSize: "10px",
-                                color: "#fff",
-                                whiteSpace: "nowrap",
-                                pointerEvents: "none",
-                                transition: "opacity 0.1s ease",
-                                background: "rgba(0,0,0,0.8)",
-                                padding: "2px 4px",
+                            {packs.map((pack: string) => <option key={pack} value={pack}>{pack}</option>)}
+                        </select>
+                        <input
+                            type="text"
+                            placeholder={pluginStore.isSyncing ? "Syncing emojis..." : "Search custom emojis..."}
+                            value={search}
+                            onChange={(e: any) => setSearch(e.target.value)}
+                            style={{
+                                flex: 1,
+                                padding: "8px",
                                 borderRadius: "4px",
-                                zIndex: 9999
-                            }}>
-                                {emoji.name.includes("_") ? emoji.name.split("_").slice(1).join("_") : emoji.name}
-                            </span>
-                        </div>
-                    );
-                })}
-                {filtered.length === 0 && (
+                                backgroundColor: "var(--background-tertiary)",
+                                color: "var(--text-normal)",
+                                border: "none",
+                                outline: "none",
+                                fontSize: "14px",
+                                boxSizing: "border-box",
+                            }}
+                            autoFocus
+                        />
+                    </div>
                     <div
                         style={{
-                            color: "var(--text-muted)",
-                            gridColumn: "1 / -1",
-                            textAlign: "center",
-                            padding: "20px",
-                            fontSize: "14px",
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fill, minmax(40px, 1fr))",
+                            gap: "8px",
+                            overflowY: "auto",
+                            padding: "12px",
+                            flex: 1,
+                            backgroundColor: "rgba(0,0,0,0.6)",
+                            borderRadius: "4px"
                         }}
                     >
-                        No emojis found matching "{search}".
+                        {filtered.map((emoji: any) => {
+                            const url = `https://cdn.discordapp.com/emojis/${emoji.id}?size=48&quality=lossless${emoji.animated ? "&animated=true" : ""}`;
+                            return (
+                                <div
+                                    key={emoji.id}
+                                    onClick={(e: any) => handleSelect(emoji, e)}
+                                    onContextMenu={(e: any) => {
+                                        e.preventDefault();
+                                        ContextMenuApi.openContextMenu(e, () => (
+                                            <Menu.Menu navId="custom-emoji-context" onClose={ContextMenuApi.closeContextMenu}>
+                                                <Menu.MenuItem
+                                                    id="rename-emoji"
+                                                    label="Rename Emoji"
+                                                    action={() => {
+                                                        onClose();
+                                                        insertTextIntoChatInputBox(`/renameemoji old_name:${emoji.name} new_name:`);
+                                                    }}
+                                                />
+                                                <Menu.MenuItem
+                                                    id="delete-emoji"
+                                                    label="Delete Emoji"
+                                                    color="danger"
+                                                    action={() => {
+                                                        onClose();
+                                                        insertTextIntoChatInputBox(`/deleteemoji name:${emoji.name}`);
+                                                    }}
+                                                />
+                                            </Menu.Menu>
+                                        ));
+                                    }}
+                                    style={{
+                                        cursor: "pointer",
+                                        borderRadius: "4px",
+                                        padding: "0",
+                                        width: "40px",
+                                        height: "40px",
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        backgroundColor: "transparent",
+                                        transition: "background-color 0.1s ease",
+                                        position: "relative"
+                                    }}
+                                    onMouseEnter={(e: any) => {
+                                        e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)";
+                                        const img = e.currentTarget.querySelector("img");
+                                        if (img) img.style.transform = "scale(1.15)";
+                                        const text = e.currentTarget.querySelector("span");
+                                        if (text) text.style.opacity = "1";
+                                    }}
+                                    onMouseLeave={(e: any) => {
+                                        e.currentTarget.style.backgroundColor = "transparent";
+                                        const img = e.currentTarget.querySelector("img");
+                                        if (img) img.style.transform = "scale(1)";
+                                        const text = e.currentTarget.querySelector("span");
+                                        if (text) text.style.opacity = "0";
+                                    }}
+                                    title={`:${emoji.name}:`}
+                                >
+                                    <img
+                                        src={url}
+                                        alt={emoji.name}
+                                        draggable={false}
+                                        style={{
+                                            width: "32px",
+                                            height: "32px",
+                                            objectFit: "contain",
+                                            transition: "transform 0.1s ease",
+                                        }}
+                                    />
+                                    <span style={{
+                                        opacity: 0,
+                                        position: "absolute",
+                                        bottom: "-20px",
+                                        fontSize: "10px",
+                                        color: "#fff",
+                                        whiteSpace: "nowrap",
+                                        pointerEvents: "none",
+                                        transition: "opacity 0.1s ease",
+                                        background: "rgba(0,0,0,0.8)",
+                                        padding: "2px 4px",
+                                        borderRadius: "4px",
+                                        zIndex: 9999
+                                    }}>
+                                        {emoji.name.includes("_") ? emoji.name.split("_").slice(1).join("_") : emoji.name}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                        {filtered.length === 0 && (
+                            <div
+                                style={{
+                                    color: "var(--text-muted)",
+                                    gridColumn: "1 / -1",
+                                    textAlign: "center",
+                                    padding: "20px",
+                                    fontSize: "14px",
+                                }}
+                            >
+                                No emojis found matching "{search}".
+                            </div>
+                        )}
                     </div>
-                )}
-            </div>
+                </div>
             ) : (
                 <div style={{ padding: "12px", overflowY: "auto", flex: 1, backgroundColor: "rgba(0,0,0,0.6)", color: "#fff" }}>
                     {loadingPacks ? <div style={{textAlign:"center", padding:"20px"}}>Loading Packs...</div> : (
@@ -321,16 +322,6 @@ export function CustomEmojiStorePopout({
                                     size={Button.Sizes.SMALL}
                                     color={Button.Colors.BRAND}
                                     onClick={() => {
-                                        // To install, we can loop over the emojis and fire the addemoji command,
-                                        // or we can instruct the user to use an /installpack command if added to the bot.
-                                        // Since we don't have an /installpack command yet, we can dispatch multiple addemojis via AST if possible,
-                                        // or we just dispatch a custom text blob that the bot can intercept, but we don't have that yet.
-                                        // Best fallback: Add command to chat input for manual sending, or let the user know.
-                                        // Wait, we can implement an "importpack" command in the python bot, but the user didn't ask for python bot changes.
-                                        // "make it so we can install these packs from the store"
-                                        // Let's iterate through the pack and add them locally!
-                                        // We don't have API access from Vencord easily. The user expects the Python bot to handle it.
-                                        // We will trigger a `/installpack` or provide a toast.
                                         showToast("Packs must be installed via bot commands or manual sync in this version.", Toasts.Type.SUCCESS);
                                     }}
                                 >
@@ -351,4 +342,5 @@ export function CustomEmojiStorePopout({
             )}
         </div>
     );
+
 }
