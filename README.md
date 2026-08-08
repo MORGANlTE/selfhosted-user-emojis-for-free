@@ -1,8 +1,27 @@
 # 💎 Selfhosted User Emojis
+<p>
+    <a href="https://github.com/MORGANlTE/selfhosted-user-emojis-for-free/stargazers">
+      <img src="https://img.shields.io/github/stars/MORGANlTE/selfhosted-user-emojis-for-free?style=for-the-badge&color=ffd700" alt="Stars" />
+    </a>
+    <a href="https://github.com/MORGANlTE/selfhosted-user-emojis-for-free/issues">
+      <img src="https://img.shields.io/github/issues/MORGANlTE/selfhosted-user-emojis-for-free?style=for-the-badge&color=ff69b4" alt="Issues" />
+    </a>
+    <a href="https://github.com/MORGANlTE/selfhosted-user-emojis-for-free/blob/main/LICENSE">
+      <img src="https://img.shields.io/github/license/MORGANlTE/selfhosted-user-emojis-for-free?style=for-the-badge&color=4caf50" alt="License" />
+    </a>
+  </p>
+  
+A self-hosted solution for custom emojis in Discord (for free! No Nitro required). Combines a **Discord.py Backend** & **Vencord Frontend Plugin** to give you free custom emojis globally. <br/><br/>
 
-An ultimate self-hosted solution for custom emojis in Discord, combining a **Discord.py Backend** and a **Vencord Frontend Plugin** to give you limitless, free, native-feeling custom emojis globally.
+## Star History
 
-> **GitHub Repository:** [https://github.com/MORGANITE/selfhosted-user-emojis-for-free](https://github.com/MORGANITE/selfhosted-user-emojis-for-free)
+<a href="https://www.star-history.com/?repos=MORGANlTE%2Fselfhosted-user-emojis-for-free&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=MORGANlTE/selfhosted-user-emojis-for-free&type=date&theme=dark&legend=top-left&sealed_token=QfC58ukansZs3JmA15Rns8KSPg05mnfenvpLZqLTbTqPZUh9cd5YH24n3qdwNV7Xgcs9s3eh9aQ-Fsc8StYo8CLoFhh3Nbg0b4-CRnVfrfS5-ckY2X4TbkkRhl0TyBIhIhgD7_zdwM8dCClemjJPjLivIgp978U3fMgbzg6mNroliokanu2J8gqjLwhP" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=MORGANlTE/selfhosted-user-emojis-for-free&type=date&legend=top-left&sealed_token=QfC58ukansZs3JmA15Rns8KSPg05mnfenvpLZqLTbTqPZUh9cd5YH24n3qdwNV7Xgcs9s3eh9aQ-Fsc8StYo8CLoFhh3Nbg0b4-CRnVfrfS5-ckY2X4TbkkRhl0TyBIhIhgD7_zdwM8dCClemjJPjLivIgp978U3fMgbzg6mNroliokanu2J8gqjLwhP" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=MORGANlTE/selfhosted-user-emojis-for-free&type=date&legend=top-left&sealed_token=QfC58ukansZs3JmA15Rns8KSPg05mnfenvpLZqLTbTqPZUh9cd5YH24n3qdwNV7Xgcs9s3eh9aQ-Fsc8StYo8CLoFhh3Nbg0b4-CRnVfrfS5-ckY2X4TbkkRhl0TyBIhIhgD7_zdwM8dCClemjJPjLivIgp978U3fMgbzg6mNroliokanu2J8gqjLwhP" />
+ </picture>
+</a>
 
 ---
 
@@ -44,3 +63,4 @@ An ultimate self-hosted solution for custom emojis in Discord, combining a **Dis
 
 ## 📜 License & Usage
 This software is provided free of charge to use and modify. Please ensure you do not violate Discord's Terms of Service or moral guidelines while using this system.
+](https://github.com/MORGANlTE/selfhosted-user-emojis-for-free)
