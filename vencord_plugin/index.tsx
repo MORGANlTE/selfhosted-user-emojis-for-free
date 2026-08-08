@@ -44,6 +44,16 @@ const settings = definePluginSettings({
         description: "Selected installed user app ID (auto-discovered)",
         default: "",
     },
+    storeName: {
+        type: OptionType.STRING,
+        description: "Custom name for your Emoji Store",
+        default: "💎 Custom Emojis"
+    },
+    storeBackground: {
+        type: OptionType.STRING,
+        description: "URL for the custom store background image",
+        default: "https://i.pinimg.com/236x/2c/cd/9d/2ccd9d9501e6ecbcca340a868ddd1184.jpg"
+    }
 });
 
 let EmojiStore: any = null;
@@ -124,6 +134,10 @@ const pluginStore = {
     apps: [] as DiscoveredApp[],
     selectedAppId: "",
     isSyncing: false,
+
+    getSetting(key: string) {
+        return settings.store[key];
+    },
 
     get cache(): PluginCache {
         return {
@@ -664,6 +678,47 @@ export default definePlugin({
                             return `;${found.name};`;
                         }
                     );
+                }
+                return orig.apply(thisObj, args);
+            }
+        );
+
+        patcherManager.instead(
+            RestAPI,
+            "post",
+            async (args, orig, thisObj) => {
+                const [req] = args;
+                if (req.url === "/interactions" && req.body && req.body.type === 2) {
+                    const cmdName = req.body.data?.name;
+                    const options = req.body.data?.options || [];
+
+                    if (cmdName === "renameemoji") {
+                        const oldNameOpt = options.find((o: any) => o.name === "old_name");
+                        const newNameOpt = options.find((o: any) => o.name === "new_name");
+                        if (oldNameOpt && newNameOpt) {
+                            const oldName = String(oldNameOpt.value).replace(/[:;]/g, "").toLowerCase();
+                            const newName = String(newNameOpt.value).replace(/[:;]/g, "").toLowerCase();
+                            const emojiObj = pluginStore.loadedEmojis.get(oldName);
+                            if (emojiObj) {
+                                emojiObj.name = newName;
+                                pluginStore.loadedEmojis.delete(oldName);
+                                pluginStore.loadedEmojis.set(newName, emojiObj);
+                                pluginStore.customEmojiObjectsById.set(emojiObj.id, pluginStore.buildEmojiObj(emojiObj));
+                                pluginStore.saveCache();
+                            }
+                        }
+                    } else if (cmdName === "deleteemoji") {
+                        const nameOpt = options.find((o: any) => o.name === "name");
+                        if (nameOpt) {
+                            const delName = String(nameOpt.value).replace(/[:;]/g, "").toLowerCase();
+                            const emojiObj = pluginStore.loadedEmojis.get(delName);
+                            if (emojiObj) {
+                                pluginStore.loadedEmojis.delete(delName);
+                                pluginStore.customEmojiObjectsById.delete(emojiObj.id);
+                                pluginStore.saveCache();
+                            }
+                        }
+                    }
                 }
                 return orig.apply(thisObj, args);
             }

@@ -398,25 +398,20 @@ class EmojiCog(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.command(name="elist", description="List all available emotes")
     async def elist(self, inter: discord.Interaction):
-        page_size = 15
+        emb = discord.Embed(title="Available Emotes", description="")
 
-        async def get_page(page: int):
-            emb = discord.Embed(title="Available Emotes", description="")
-            offset = (page - 1) * page_size
-            keys = list(self.emotes.keys())[offset : offset + page_size]
-            for emoji in keys:
-                emb.add_field(
-                    name="** **",
-                    value=f"📱`;{emoji};`\n```;{emoji};```" + self.emotes[emoji],
-                    inline=True,
-                )
-            emb.set_author(name="Long press the 📱 field to copy for Mobile")
+        description_lines = []
+        for name, tag in self.emotes.items():
+            description_lines.append(f"{tag} `;{name};`")
 
-            total_pages = Pagination.compute_total_pages(len(self.emotes), page_size)
-            emb.set_footer(text=f"Page {page} from {total_pages}")
-            return emb, total_pages
+        emb.description = "\n".join(description_lines)
+        if len(emb.description) > 4000:
+            emb.description = emb.description[:3997] + "..."
 
-        await Pagination(inter, get_page).navegate()
+        emb.set_footer(text="Install our Vencord plugin for the best experience!")
+        emb.url = "https://github.com/Morganite/UserEmojiPicker" # Example link to github page
+
+        await inter.response.send_message(embed=emb, ephemeral=True)
 
     # /search
     @app_commands.allowed_installs(users=True, guilds=False)
@@ -545,37 +540,83 @@ class EmojiCog(commands.Cog):
     # /addemoji
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    @app_commands.command(name="addemoji", description="Add a new emoji")
-    @app_commands.describe(name="Emoji name", image="PNG image")
+    def _get_unique_name(self, base_name: str) -> str:
+        """Finds a unique name by appending numbers if it already exists."""
+        if base_name not in self.emotes:
+            return base_name
+        counter = 1
+        while f"{base_name}{counter}" in self.emotes:
+            counter += 1
+        return f"{base_name}{counter}"
+
+    @app_commands.command(name="addemoji", description="Add a new emoji from image or zip")
+    @app_commands.describe(name="Emoji name (ignored for zip)", file="PNG/GIF image or ZIP file")
     async def addemoji(
         self,
         inter: discord.Interaction,
         name: str,
-        image: discord.Attachment,
+        file: discord.Attachment,
     ):
         await inter.response.defer(ephemeral=True)
-        image_bytes = await image.read()
+        file_bytes = await file.read()
+
+        if file.filename.endswith(".zip"):
+            import zipfile
+            import io
+
+            added = []
+            failed = []
+
+            try:
+                with zipfile.ZipFile(io.BytesIO(file_bytes)) as z:
+                    for filename in z.namelist():
+                        if filename.endswith((".png", ".gif", ".jpg", ".jpeg")):
+                            base_name = filename.split('/')[-1].rsplit('.', 1)[0].replace(" ", "_")
+                            unique_name = self._get_unique_name(base_name)
+
+                            img_data = z.read(filename)
+                            img_type = "gif" if filename.endswith(".gif") else "png"
+                            payload = {
+                                "name": unique_name,
+                                "image": f"data:image/{img_type};base64," + base64.b64encode(img_data).decode(),
+                            }
+
+                            status, data = await DiscordAPIHelper.request("POST", "/emojis", payload)
+                            if status == 201:
+                                self.emotes[unique_name] = f"<{'a' if data.get('animated') else ''}:{unique_name}:{data['id']}>"
+                                added.append(unique_name)
+                            else:
+                                failed.append(f"{filename} (API Error {status})")
+
+                self.save()
+                msg = f"✅ Successfully added {len(added)} emojis from zip.\n"
+                if failed:
+                    msg += f"❌ Failed to add {len(failed)} emojis: {', '.join(failed[:5])}" + ("..." if len(failed) > 5 else "")
+                await inter.followup.send(msg, ephemeral=True)
+
+            except zipfile.BadZipFile:
+                await inter.followup.send("❌ Invalid zip file.", ephemeral=True)
+            except Exception as e:
+                await inter.followup.send(f"❌ Error processing zip: {e}", ephemeral=True)
+            return
+
+        # Regular Image Upload
+        unique_name = self._get_unique_name(name)
+        img_type = "gif" if file.filename.endswith(".gif") else "png"
         payload = {
-            "name": name,
-            "image": "data:image/png;base64,"
-            + base64.b64encode(image_bytes).decode(),
+            "name": unique_name,
+            "image": f"data:image/{img_type};base64," + base64.b64encode(file_bytes).decode(),
         }
 
         status, data = await DiscordAPIHelper.request("POST", "/emojis", payload)
 
         if status != 201:
-            await inter.followup.send(
-                f"Failed: {data}", ephemeral=True
-            )
+            await inter.followup.send(f"Failed: {data}", ephemeral=True)
             return
 
-        self.emotes[name] = (
-            f"<{'a' if data.get('animated') else ''}:{name}:{data['id']}>"
-        )
+        self.emotes[unique_name] = f"<{'a' if data.get('animated') else ''}:{unique_name}:{data['id']}>"
         self.save()
-        await inter.followup.send(
-            f"Added {self.emotes[name]} as ;{name};", ephemeral=True
-        )
+        await inter.followup.send(f"Added {self.emotes[unique_name]} as ;{unique_name};", ephemeral=True)
 
     # /stealemoji
     @app_commands.allowed_installs(users=True, guilds=False)

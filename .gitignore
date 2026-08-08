@@ -8,6 +8,3 @@ __pycache__/
 cogs/private/*.py
 !cogs/private/*.example.py
 !cogs/private/.gitkeep
-helpers/*.txt
-helpers/private/*.py
-!cogs/private/.gitkeep

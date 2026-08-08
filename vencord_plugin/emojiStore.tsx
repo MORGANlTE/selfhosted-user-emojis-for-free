@@ -79,7 +79,7 @@ export function CustomEmojiStorePopout({
         <div style={{
             width: "350px",
             height: "400px",
-            backgroundImage: "url(https://i.pinimg.com/236x/2c/cd/9d/2ccd9d9501e6ecbcca340a868ddd1184.jpg)", backgroundSize: "cover",
+            backgroundImage: `url(${pluginStore.getSetting?.("storeBackground") || "https://i.pinimg.com/236x/2c/cd/9d/2ccd9d9501e6ecbcca340a868ddd1184.jpg"})`, backgroundSize: "cover",
             border: "1px solid var(--background-tertiary)",
             borderRadius: "8px",
             boxShadow: "0 8px 16px rgba(0,0,0,0.24)",
@@ -104,7 +104,7 @@ export function CustomEmojiStorePopout({
                                 fontWeight: 600,
                                 cursor: "pointer"
                             }}>
-                            💎 Emojis
+                            {pluginStore.getSetting?.("storeName") || "💎 Custom Emojis"}
                         </h3>
                         <h3
                             onClick={() => setActiveTab("store")}
