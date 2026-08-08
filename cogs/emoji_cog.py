@@ -419,6 +419,24 @@ class EmojiCog(commands.Cog):
                     break
         return choices
 
+    async def pack_name_autocomplete(self, inter: discord.Interaction, current: str):
+        import os, json
+        choices = []
+        packs_file = "vencord_plugin/packs_index.json"
+        if os.path.exists(packs_file):
+            try:
+                with open(packs_file, "r", encoding="utf-8") as f:
+                    packs = json.load(f)
+                for p in packs:
+                    name = p.get("name", "")
+                    if current.lower() in name.lower():
+                        choices.append(app_commands.Choice(name=name, value=name))
+                        if len(choices) >= 25:
+                            break
+            except:
+                pass
+        return choices
+
     # /renameemoji
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -731,26 +749,6 @@ class EmojiCog(commands.Cog):
 
         self.save()
         await inter.followup.send(f"✅ Successfully uninstalled **{pack['name']}**, removing {removed} emojis.", ephemeral=True)
-
-    @app_commands.allowed_installs(users=True, guilds=False)
-    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def pack_name_autocomplete(self, inter: discord.Interaction, current: str):
-        import os, json
-        choices = []
-        packs_file = "vencord_plugin/packs_index.json"
-        if os.path.exists(packs_file):
-            try:
-                with open(packs_file, "r", encoding="utf-8") as f:
-                    packs = json.load(f)
-                for p in packs:
-                    name = p.get("name", "")
-                    if current.lower() in name.lower():
-                        choices.append(app_commands.Choice(name=name, value=name))
-                        if len(choices) >= 25:
-                            break
-            except:
-                pass
-        return choices
 
     @app_commands.allowed_installs(users=True, guilds=False)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
