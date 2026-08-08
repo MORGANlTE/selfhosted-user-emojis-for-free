@@ -55,8 +55,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
 
   const allEmojis = Array.from(pluginStore.loadedEmojis.values());
 
-  const capitalize = (s: string) =>
-    s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
+  const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
 
   // Extract unique packs by checking for the `packname_` prefix convention
   const packs = Array.from(
