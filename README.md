@@ -63,4 +63,3 @@ A self-hosted solution for custom emojis in Discord (for free! No Nitro required
 
 ## 📜 License & Usage
 This software is provided free of charge to use and modify. Please ensure you do not violate Discord's Terms of Service or moral guidelines while using this system.
-](https://github.com/MORGANlTE/selfhosted-user-emojis-for-free)
