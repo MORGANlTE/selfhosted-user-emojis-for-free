@@ -747,6 +747,22 @@ export default definePlugin({
                                 pluginStore.saveCache();
                             }
                         }
+                    } else if (cmdName === "uninstallpack") {
+                        const packOpt = options.find((o: any) => o.name === "pack_name");
+                        if (packOpt) {
+                            const packNamePrefix = String(packOpt.value).toLowerCase() + "_";
+                            let deletedAny = false;
+                            for (const [name, emoji] of pluginStore.loadedEmojis.entries()) {
+                                if (name.startsWith(packNamePrefix)) {
+                                    pluginStore.loadedEmojis.delete(name);
+                                    pluginStore.customEmojiObjectsById.delete(emoji.id);
+                                    deletedAny = true;
+                                }
+                            }
+                            if (deletedAny) {
+                                pluginStore.saveCache();
+                            }
+                        }
                     }
                 }
                 return orig.apply(thisObj, args);
@@ -770,13 +786,14 @@ export default definePlugin({
                             colonName: string,
                             semiName: string,
                         ) => {
-                            if (_tagId === "999999999999999999") {
-                                hasAppEmoji = true;
-                                return `;random;`;
-                            }
-                            if (semiName === "random") {
-                                hasAppEmoji = true;
-                                return `;random;`;
+                            if (_tagId === "999999999999999999" || semiName === "random") {
+                                const allEmojisArr = Array.from(pluginStore.loadedEmojis.values());
+                                if (allEmojisArr.length > 0) {
+                                    hasAppEmoji = true;
+                                    const randomEmoji = allEmojisArr[Math.floor(Math.random() * allEmojisArr.length)];
+                                    return `;${randomEmoji.name};`;
+                                }
+                                return match;
                             }
                             const rawName = (
                                 tagName ||

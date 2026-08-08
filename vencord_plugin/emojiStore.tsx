@@ -18,6 +18,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
   const [activeTab, setActiveTab] = React.useState("emojis");
   const [storePacks, setStorePacks] = React.useState<any[]>([]);
   const [loadingPacks, setLoadingPacks] = React.useState(false);
+  const [pendingInstalls, setPendingInstalls] = React.useState<string[]>([]);
 
   // Random emoji state moved to top level to avoid React Error 300
   const allEmojisArr = Array.from(pluginStore.loadedEmojis.values());
@@ -545,6 +546,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
                 Object.keys(pack.emojis).some((name: string) =>
                   pluginStore.loadedEmojis.has(name.toLowerCase()),
                 );
+              const isPending = pendingInstalls.includes(pack.name);
 
               return (
                 <div
@@ -695,9 +697,10 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
                       color={
                         isInstalled ? Button.Colors.GREEN : Button.Colors.BRAND
                       }
-                      disabled={isInstalled}
+                      disabled={isInstalled || isPending}
                       onClick={() => {
-                        if (isInstalled) return;
+                        if (isInstalled || isPending) return;
+                        setPendingInstalls((prev) => [...prev, pack.name]);
                         onClose();
                         insertTextIntoChatInputBox(
                           `/installpack pack_name:${pack.name}`,
@@ -709,7 +712,7 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
                       }}
                       style={{ flex: 1 }}
                     >
-                      {isInstalled ? "✅ Installed" : "📥 Install Pack"}
+                      {isInstalled ? "✅ Installed" : (isPending ? "⏳ Pending..." : "📥 Install Pack")}
                     </Button>
                     {isInstalled && (
                       <Button
