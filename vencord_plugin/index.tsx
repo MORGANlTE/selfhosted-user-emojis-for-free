@@ -1,3 +1,9 @@
+/*
+* Vencord, a Discord client mod
+* Copyright (c) 2026 Morganite and contributors*
+* SPDX-License-Identifier: GPL-3.0-or-later
+*/
+
 import React from "react";
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
 import { insertTextIntoChatInputBox } from "@utils/discord";

@@ -339,13 +339,23 @@ export function CustomEmojiStorePopout({
                                 }}>
                                     <div style={{display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px"}}>
                                         <div style={{display: "flex", gap: "12px", alignItems: "center"}}>
-                                            {pack.iconUrl && (
-                                                <img
-                                                    src={pack.iconUrl}
-                                                    alt={pack.name}
-                                                    style={{ width: "40px", height: "40px", borderRadius: "8px", objectFit: "cover" }}
-                                                />
-                                            )}
+                                            {(pack.iconUrl || pack.icon) && (() => {
+                                                const rawIcon = pack.iconUrl || pack.icon;
+                                                let src = rawIcon;
+                                                if (rawIcon.startsWith("<")) {
+                                                    const parts = rawIcon.replace(/[<>]/g, "").split(":");
+                                                    const id = parts[parts.length - 1];
+                                                    const isAnimated = parts[0] === "a";
+                                                    src = `https://cdn.discordapp.com/emojis/${id}?size=64&quality=lossless${isAnimated ? "&animated=true" : ""}`;
+                                                }
+                                                return (
+                                                    <img
+                                                        src={src}
+                                                        alt={pack.name}
+                                                        style={{ width: "40px", height: "40px", borderRadius: "8px", objectFit: "cover" }}
+                                                    />
+                                                );
+                                            })()}
                                             <div>
                                                 <h4 style={{margin: "0 0 4px 0", fontSize: "16px", color: "var(--header-primary)"}}>{pack.name}</h4>
                                                 <p style={{margin: "0", fontSize: "12px", color: "var(--text-muted)"}}>{pack.description || "No description provided."}</p>
