@@ -84,16 +84,30 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
   const handleSelect = (emoji: any, event: any) => {
     try {
       if (emoji.isRandom) {
-        insertTextIntoChatInputBox(`<:gift:999999999999999999> `);
+        const arr = Array.from(pluginStore.loadedEmojis.values());
+        if (arr.length > 0) {
+          const rand = arr[Math.floor(Math.random() * arr.length)];
+          insertTextIntoChatInputBox(`<${rand.animated ? "a" : ""}:${rand.name}:${rand.id}> `);
+        } else {
+          insertTextIntoChatInputBox(`;random; `);
+        }
       } else {
         const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}> `;
         insertTextIntoChatInputBox(textToInsert);
       }
     } catch (e) {
-      const textToInsert = emoji.isRandom
-        ? `;random;`
-        : `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
-      navigator.clipboard.writeText(textToInsert);
+      if (emoji.isRandom) {
+        const arr = Array.from(pluginStore.loadedEmojis.values());
+        if (arr.length > 0) {
+          const rand = arr[Math.floor(Math.random() * arr.length)];
+          navigator.clipboard.writeText(`<${rand.animated ? "a" : ""}:${rand.name}:${rand.id}>`);
+        } else {
+          navigator.clipboard.writeText(`;random;`);
+        }
+      } else {
+        const textToInsert = `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
+        navigator.clipboard.writeText(textToInsert);
+      }
       showToast("Copied to clipboard!", Toasts.Type.SUCCESS);
     }
 

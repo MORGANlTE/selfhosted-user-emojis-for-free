@@ -617,28 +617,6 @@ export default definePlugin({
             "getCustomEmojiById",
             (args, orig, thisObj) => {
                 const [id] = args;
-                if (id === "999999999999999999") {
-                    return {
-                        id: "999999999999999999",
-                        name: "gift",
-                        originalName: "gift",
-                        animated: false,
-                        available: true,
-                        managed: false,
-                        require_colons: true,
-                        roles: [],
-                        url: `https://cdn.discordapp.com/emojis/847253503253245992.webp?size=64&quality=lossless`, // Fake placeholder image URL (a gift or cat icon)
-                        allNamesString: `:gift:`,
-                        type: 3,
-                        category: USER_PICKER_CATEGORY,
-                        categoryName: USER_PICKER_CATEGORY,
-                        source: "discord",
-                        score: 2147483647,
-                        isLocked: false,
-                        locked: false,
-                        disabled: false,
-                    };
-                }
                 if (pluginStore.customEmojiObjectsById.has(id))
                     return pluginStore.customEmojiObjectsById.get(id);
                 return orig.apply(thisObj, args);
@@ -664,7 +642,6 @@ export default definePlugin({
                 "isEmojiUsable",
                 (args, orig, thisObj) => {
                     const [emoji] = args;
-                    if (emoji && emoji.id === "999999999999999999") return true;
                     if (emoji && pluginStore.customEmojiObjectsById.has(emoji.id)) return true;
                     return orig.apply(thisObj, args);
                 }
@@ -786,7 +763,7 @@ export default definePlugin({
                             colonName: string,
                             semiName: string,
                         ) => {
-                            if (_tagId === "999999999999999999" || semiName === "random") {
+                            if (semiName === "random") {
                                 const allEmojisArr = Array.from(pluginStore.loadedEmojis.values());
                                 if (allEmojisArr.length > 0) {
                                     hasAppEmoji = true;
@@ -801,9 +778,6 @@ export default definePlugin({
                                 semiName ||
                                 ""
                             ).toLowerCase();
-                            if (rawName === "gift" && _tagId !== "999999999999999999" && semiName !== "gift") {
-                                return match;
-                            }
                             const found = pluginStore.loadedEmojis.get(rawName);
                             if (!found) return match;
                             hasAppEmoji = true;
