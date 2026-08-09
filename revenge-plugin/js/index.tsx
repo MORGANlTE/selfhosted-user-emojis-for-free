@@ -1,12 +1,16 @@
+import React from "react";
+import { AppRegistry, View, TouchableOpacity, Text } from "react-native";
+import { CustomEmojiStoreModal } from "./emojiStore";
 /**
  * Main entry point for the Revenge Plugin.
  * Initializes the plugin, overrides Discord message dispatching logic to inject custom emojis,
  * and loads the locally bundled emoji cache natively.
  */
 import { plugin } from "@revenge-mod/plugins";
-import { instead } from "@revenge-mod/patcher";
+import { instead, after } from "@revenge-mod/patcher";
 import { getModules } from "@revenge-mod/modules/finders";
 import type { Metro } from "@revenge-mod/modules/types";
+import localEmojisCache from "../emojis.json";
 
 // Basic types to mock the plugin structure internally based on Revenge types
 type PluginConfig = { start: () => void; stop: () => void; [key: string]: any };
@@ -28,7 +32,7 @@ export interface AppEmoji {
  * Global reactive store for the plugin.
  * Holds the cached custom emojis loaded from the bundled JSON.
  */
-const pluginStore = {
+export const pluginStore = {
     loadedEmojis: new Map<string, AppEmoji>(),
     customEmojiObjectsById: new Map<string, any>(),
 
@@ -61,6 +65,61 @@ const pluginStore = {
     }
 };
 
+
+let unpatchRoot: (() => void) | null = null;
+let RootAppWrapper: any = null;
+
+// Global event emitter to open the modal
+export const EventBus = {
+  listeners: [] as Function[],
+  subscribe(fn: Function) { this.listeners.push(fn); },
+  unsubscribe(fn: Function) { this.listeners = this.listeners.filter(l => l !== fn); },
+  emit() { this.listeners.forEach(fn => fn()); }
+};
+
+const EmojiStoreRoot = () => {
+  const [visible, setVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    const toggle = () => setVisible(v => !v);
+    EventBus.subscribe(toggle);
+    return () => EventBus.unsubscribe(toggle);
+  }, []);
+
+  return <CustomEmojiStoreModal visible={visible} onClose={() => setVisible(false)} pluginStore={pluginStore} />;
+};
+
+const patchRootComponent = () => {
+  const OriginalApp = AppRegistry.registerComponent;
+  unpatchRoot = instead(AppRegistry, "registerComponent", (args, orig) => {
+    const [appKey, componentProvider] = args;
+    if (appKey === "Discord") {
+      const OriginalRoot = componentProvider();
+      const Wrapped = (props: any) => {
+        return (
+          <>
+            <OriginalRoot {...props} />
+            {/* Floating Action Button */}
+            <React.Fragment>
+              <View style={{position: 'absolute', bottom: 100, right: 20, zIndex: 9999}}>
+                <TouchableOpacity
+                  onPress={() => EventBus.emit()}
+                  style={{backgroundColor: '#5865F2', padding: 15, borderRadius: 50, alignItems: 'center', justifyContent: 'center'}}>
+                  <Text style={{fontSize: 24, color: 'white', fontWeight: 'bold'}}>💎</Text>
+                </TouchableOpacity>
+              </View>
+            </React.Fragment>
+            <EmojiStoreRoot />
+          </>
+        );
+      };
+      return orig(appKey, () => Wrapped);
+    }
+    return orig(...args);
+  });
+};
+
+
 export default plugin({
     name: "UserEmojiPicker-Revenge",
     description: "Injects emojis natively and handles stealing safely for Revenge Mobile.",
@@ -68,10 +127,11 @@ export default plugin({
 
     start() {
         console.log("[UserEmojiPicker] Revenge plugin started");
+        patchRootComponent();
 
         // Use require to fetch from a JSON file that users can update themselves
         try {
-            const localCache = require("../emojis.json");
+            const localCache = localEmojisCache;
             pluginStore.hydrateEmojis(Array.isArray(localCache) ? localCache : []);
         } catch (err) {
             console.warn("Failed to load local emojis.json. Make sure you synced your emojis first!");
@@ -112,7 +172,11 @@ export default plugin({
             }
         }
 
+        // --- CHAT INPUT INJECTION ---
+        // We inject a Floating Action Button globally to open the modal instead since ChatInput is highly obfuscated in RN.
+
         // Find the module responsible for dispatching messages.
+        // We use string.replace with a replacer function instead of a while loop. This is more efficient and handles multiple identical emojis properly.
         const messageActionsModules = getModules((m: any) => typeof m?.sendMessage === "function");
         if (messageActionsModules.length > 0) {
             const MessageActions = messageActionsModules[0];
@@ -130,16 +194,9 @@ export default plugin({
 
                     if (message && message.content && pluginStore.loadedEmojis.size > 0) {
                         const nativeRegex = /<a?:([A-Za-z0-9_]+):(\d+)>/g;
-                        let newContent = message.content;
-                        let match;
-
-                        while ((match = nativeRegex.exec(message.content)) !== null) {
-                            const emojiName = match[1];
-                            if (pluginStore.loadedEmojis.has(emojiName)) {
-                                newContent = newContent.replace(match[0], `;${emojiName};`);
-                            }
-                        }
-                        message.content = newContent;
+                        message.content = message.content.replace(nativeRegex, (match, emojiName) => {
+                                return pluginStore.loadedEmojis.has(emojiName) ? `;${emojiName};` : match;
+                            });
                     }
 
                     return orig(...args);
@@ -156,16 +213,9 @@ export default plugin({
 
                         if (message && message.content && pluginStore.loadedEmojis.size > 0) {
                             const nativeRegex = /<a?:([A-Za-z0-9_]+):(\d+)>/g;
-                            let newContent = message.content;
-                            let match;
-
-                            while ((match = nativeRegex.exec(message.content)) !== null) {
-                                const emojiName = match[1];
-                                if (pluginStore.loadedEmojis.has(emojiName)) {
-                                    newContent = newContent.replace(match[0], `;${emojiName};`);
-                                }
-                            }
-                            message.content = newContent;
+                            message.content = message.content.replace(nativeRegex, (match, emojiName) => {
+                                return pluginStore.loadedEmojis.has(emojiName) ? `;${emojiName};` : match;
+                            });
                         }
 
                         return orig(...args);
@@ -183,18 +233,10 @@ export default plugin({
 
                     if (content && pluginStore.loadedEmojis.size > 0) {
                         const emojiRegex = /;([A-Za-z0-9_]+);/g;
-                        let newContent = content;
-                        let match;
-
-                        while ((match = emojiRegex.exec(content)) !== null) {
-                            const emojiName = match[1];
+                        args[2] = content.replace(emojiRegex, (match, emojiName) => {
                             const emojiObj = pluginStore.loadedEmojis.get(emojiName);
-                            if (emojiObj) {
-                                const tag = `<${emojiObj.animated ? "a" : ""}:${emojiObj.name}:${emojiObj.id}>`;
-                                newContent = newContent.replace(match[0], tag);
-                            }
-                        }
-                        args[2] = newContent;
+                            return emojiObj ? `<${emojiObj.animated ? "a" : ""}:${emojiObj.name}:${emojiObj.id}>` : match;
+                        });
                     }
 
                     return orig(...args);
@@ -211,5 +253,6 @@ export default plugin({
         if (unpatchGetCustomEmojiById) unpatchGetCustomEmojiById();
         if (unpatchGetEmojis) unpatchGetEmojis();
         if (unpatchIsEmojiUsable) unpatchIsEmojiUsable();
+        if (unpatchRoot) unpatchRoot();
     },
 });
