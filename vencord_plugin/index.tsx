@@ -66,6 +66,11 @@ let EmojiStore: any = null;
 let ReplyStore: any = null;
 let PendingReplyActions: any = null;
 
+/**
+ * A lightweight alternative to Vencord's built-in patcher to directly override function properties on webpack modules.
+ * This is particularly useful when we need to bypass static injection in favor of dynamic runtime behavior
+ * (like intercepting MessageActions before dispatch).
+ */
 const patcherManager = {
     patches: [] as any[],
 
@@ -134,6 +139,11 @@ const storage = {
     },
 };
 
+/**
+ * Global reactive store for the plugin.
+ * Holds the current app selection, discovered slash commands, and caches the emoji lists locally.
+ * Manages cache saving/loading logic across Vencord/Discord reloads.
+ */
 const pluginStore = {
     loadedEmojis: new Map<string, AppEmoji>(),
     customEmojiObjectsById: new Map<string, any>(),
@@ -441,6 +451,11 @@ const pluginStore = {
     },
 };
 
+/**
+ * A fallback mechanism to dynamically locate the Discord module responsible for handling message replies.
+ * Needed when normal Webpack module searching fails, ensuring that emojis sent via slash commands
+ * can properly resolve and clear reply states.
+ */
 function silentlyFindPendingReplyActions() {
     try {
         const wp = (window as any).webpackChunkdiscord_app;
@@ -533,6 +548,12 @@ const CustomEmojiStoreButton: ChatBarButtonFactory = ({ isAnyChat }) => {
     return <CustomEmojiStoreButtonWrapper />;
 };
 
+/**
+ * Main entry point for the Vencord Plugin.
+ * Initializes the settings, mounts the ChatBar buttons for the custom picker UI,
+ * overrides Discord message dispatching logic to inject custom emojis, and
+ * listens for application commands.
+ */
 export default definePlugin({
     name: "UserEmojiPicker",
     description:
@@ -556,6 +577,8 @@ export default definePlugin({
 
     async start() {
         EmojiStore = findStore("EmojiStore");
+        // Mock a fake guild called "User App Plugin" to inject custom source labels
+        // for emojis natively into Discord's autocomplete.
         patcherManager.instead(
             GuildStore,
             "getGuild",
@@ -649,6 +672,9 @@ export default definePlugin({
         }
 
         // --- MESSAGE DISPATCH INTERCEPTOR ---
+        // We intercept `startEditMessage` and `sendMessage` to manipulate message content
+        // right before it reaches Discord servers. This allows us to convert native emoji IDs
+        // in the chatbox into the text replacements our bot understands (like `;emoji_name;`).
         patcherManager.instead(
             MessageActions,
             "startEditMessage",
@@ -725,6 +751,8 @@ export default definePlugin({
                             }
                         }
                     } else if (cmdName === "uninstallpack") {
+                        // Optimistically remove all emojis that match the deleted pack's prefix
+                        // from the cache so the UI updates immediately.
                         const packOpt = options.find((o: any) => o.name === "pack_name");
                         if (packOpt) {
                             const packNamePrefix = String(packOpt.value).toLowerCase() + "_";

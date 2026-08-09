@@ -12,6 +12,13 @@ import {
 import { insertTextIntoChatInputBox } from "@utils/discord";
 import { findByProps } from "@webpack";
 
+/**
+ * Renders the main Custom Emoji popout UI.
+ * This component handles searching, filtering by pack, rendering the local cache of emojis,
+ * and installing/uninstalling packs from the bundled JSON registry.
+ *
+ * @param props Contains the onClose callback to dismiss the popout and the reactive pluginStore.
+ */
 export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
   const [search, setSearch] = React.useState("");
   const [selectedPack, setSelectedPack] = React.useState("All");

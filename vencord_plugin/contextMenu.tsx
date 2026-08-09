@@ -12,6 +12,15 @@ import {
 import { insertTextIntoChatInputBox } from "@utils/discord";
 import { ComponentDispatch, ContextMenuApi } from "@webpack/common";
 
+/**
+ * Dispatches a slash command directly to Discord's interaction API.
+ * This function artificially creates a command payload in the background, circumventing the need
+ * for the user to manually type and submit the command in the chat box, enabling seamless UI interactions.
+ *
+ * @param app The bot application containing the command details.
+ * @param commandName The name of the command to execute (e.g., 'stealemoji').
+ * @param options The argument payload required by the command.
+ */
 async function dispatchCommand(
     app: any,
     commandName: string,
@@ -67,7 +76,13 @@ async function dispatchCommand(
     }
 }
 
-// 1. Right-Clicking an Emoji directly in the Visual Picker
+/**
+ * Injects a context menu item into Discord's native Expression (Emoji) Picker.
+ * This allows users to right-click an emoji in the native picker and execute the `/stealemoji` command.
+ *
+ * @param getAppState Function to retrieve the current state of the selected bot application.
+ * @returns A patcher callback to manipulate the context menu's children.
+ */
 export function createExpressionPickerPatch(getAppState: () => any) {
     return (children: any[], props: any) => {
         if (!Menu || !Menu.MenuItem || !Menu.MenuGroup) return;
@@ -114,7 +129,13 @@ export function createExpressionPickerPatch(getAppState: () => any) {
     };
 }
 
-// 2. Right-Clicking a Message in Chat
+/**
+ * Injects context menu items when right-clicking a message in chat.
+ * Adds options to Edit Bot Messages (via `/ed`) and to steal custom emojis found within the message's content.
+ *
+ * @param getAppState Function to retrieve the current state of the selected bot application.
+ * @returns A patcher callback to manipulate the context menu's children.
+ */
 export function createMessageContextPatch(getAppState: () => any) {
     return (children: any[], props: any) => {
         if (!Menu || !Menu.MenuItem || !Menu.MenuGroup) return;
