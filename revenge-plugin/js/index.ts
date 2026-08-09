@@ -71,7 +71,7 @@ export default plugin({
 
         // Use require to fetch from a JSON file that users can update themselves
         try {
-            const localCache = require("./emojis.json");
+            const localCache = require("../emojis.json");
             pluginStore.hydrateEmojis(Array.isArray(localCache) ? localCache : []);
         } catch (err) {
             console.warn("Failed to load local emojis.json. Make sure you synced your emojis first!");

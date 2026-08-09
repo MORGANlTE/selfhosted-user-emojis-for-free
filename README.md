@@ -68,8 +68,19 @@ This software is provided free of charge to use and modify. Please ensure you do
 ---
 
 ## 📱 Revenge (Android/Mobile)
-The `revenge-plugin` directory contains a mobile port of the UserEmojiPicker using the [Revenge Android Mod](https://github.com/revenge-mod/revenge-bundle-next) architecture. It patches `MessageActions` to intercept and inject your custom emojis seamlessly on the go.
+The `revenge-plugin` directory contains a mobile port of the UserEmojiPicker designed for the [Revenge Android Mod](https://github.com/revenge-mod/revenge-bundle-next) architecture. It patches `MessageActions` to intercept and inject your custom emojis seamlessly on the go.
 
-### Installation (Revenge)
-1. Ensure your Revenge client has Developer Settings enabled.
-2. Build the plugin using the `Revenge Plugin CLI` and deploy `revenge-plugin/index.js` to your device, or manually drop it into your local Revenge plugins directory.
+### 🛠️ Building & Installation (Revenge)
+1. **Set up the template build environment:**
+   - Ensure you have [Bun](https://bun.sh/) (or Node/NPM) and the Android SDK installed.
+   - Clone the official [revenge-plugin-template](https://github.com/revenge-mod/revenge-plugin-template).
+2. **Copy the plugin files:**
+   - Copy the `revenge-plugin` folder from this repository into the `plugins/` directory of the `revenge-plugin-template`.
+   - Rename the folder from `revenge-plugin` to `useremojipicker` (or whatever ID you choose in the manifest).
+3. **Build the bundle:**
+   - In the template root, run `bun install` to grab dependencies.
+   - Run `bun run build useremojipicker` (using the folder name you set).
+   - This will generate the compiled `index.js` in `plugins/useremojipicker/build/js/index.js`.
+4. **Deploy to your phone:**
+   - **Method A (ADB):** Use the Revenge Plugin CLI or just `adb push plugins/useremojipicker/build/js/index.js /sdcard/Revenge/plugins/com.morganite.useremojipicker/` (Adjust path to where Revenge looks for your custom plugins).
+   - **Method B (Local Server):** Follow the Revenge instructions to run `bun run serve` and add your local IP to your phone's Revenge Repo list. Then install it directly from the Revenge app UI.
