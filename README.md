@@ -64,3 +64,12 @@ Note: current Readme file is AI generated. Will fix this in (one of the) next up
 
 ## 📜 License & Usage
 This software is provided free of charge to use and modify. Please ensure you do not violate Discord's Terms of Service or moral guidelines while using this system.
+
+---
+
+## 📱 Revenge (Android/Mobile)
+The `revenge-plugin` directory contains a mobile port of the UserEmojiPicker using the [Revenge Android Mod](https://github.com/revenge-mod/revenge-bundle-next) architecture. It patches `MessageActions` to intercept and inject your custom emojis seamlessly on the go.
+
+### Installation (Revenge)
+1. Ensure your Revenge client has Developer Settings enabled.
+2. Build the plugin using the `Revenge Plugin CLI` and deploy `revenge-plugin/index.js` to your device, or manually drop it into your local Revenge plugins directory.
