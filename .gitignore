@@ -10,5 +10,6 @@ cogs/private/*.py
 helpers/private/*.py
 !helpers/private/*.example.py
 helpers/private/*.py
+helpers/private/*
 *.json
 !vencord_plugins/packs_index.json
