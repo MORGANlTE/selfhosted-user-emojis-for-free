@@ -10,7 +10,7 @@ TOKEN = os.environ.get("TOKEN")
 
 intents = discord.Intents.default()
 intents.emojis_and_stickers = True
-bot = commands.Bot(command_prefix=None, intents=intents)
+bot = commands.Bot(command_prefix=(), intents=intents)
 
 def is_module_enabled(env_var_name: str, default: bool = False) -> bool:
     val = os.environ.get(env_var_name)
