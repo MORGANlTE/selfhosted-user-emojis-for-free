@@ -18,7 +18,9 @@ import {
     MessageActions,
     RestAPI,
     SelectedGuildStore,
-    SnowflakeUtils
+    SnowflakeUtils,
+    Toasts,
+    showToast,
 } from "@webpack/common";
 import {
     createExpressionPickerPatch,
@@ -788,7 +790,11 @@ export default definePlugin({
                     if (hasAppEmoji) {
                         const app = pluginStore.getSelectedApp();
                         const eCmd = pluginStore.getCommand("e");
-                        if (!app || !eCmd) return orig.apply(thisObj, args);
+                        if (!app || !eCmd) {
+                            showToast("Message not intercepted by bot", Toasts.Type.FAILURE);
+                            console.warn("Message not intercepted by bot");
+                            return orig.apply(thisObj, args);
+                        }
 
                         const options: any[] = [
                             { type: 3, name: "text", value: transformed },
@@ -841,6 +847,8 @@ export default definePlugin({
                             }
                             return Promise.resolve({ code: 0 });
                         } catch (err) {
+                            showToast("Message not intercepted by bot", Toasts.Type.FAILURE);
+                            console.warn("Message not intercepted by bot", err);
                             return orig.apply(thisObj, args);
                         }
                     }
