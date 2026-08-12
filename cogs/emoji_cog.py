@@ -310,12 +310,16 @@ class EmojiCog(commands.Cog):
         reply_text: Optional[str] = None,
     ):
         processed_text = self.repl(text.replace("\\n", "\n"))
-        if reply:
-            processed_text += f"\n-# Replying to {reply.mention}"
+        # if reply:
+            # processed_text += f"\n-# Replying to {reply.mention}"
 
         embed = None
         if reply_text:
-            embed = discord.Embed(description=reply_text)
+            embed = discord.Embed(description=f"-# Replying to {reply.mention}\n{reply_text}")
+            # fetch users display name in this context and set it in the footer
+            # replace replying to with an emoji of returning
+            # embed.set_author(name=f"Replying to {reply.display_name}", icon_url=reply.display_avatar.url)
+            # embed.set_footer(text=f"Replying to {reply.display_name}", icon_url=reply.display_avatar.url)
 
         await inter.response.send_message(processed_text, embed=embed)
         msg = await inter.original_response()
