@@ -89,11 +89,12 @@ class RenameEmojiView(discord.ui.View):
 
 
 class EditMessageModal(discord.ui.Modal, title="Edit Last Message"):
-    def __init__(self, cog: "EmojiCog", message: discord.InteractionMessage, raw_text: str, reply_user: Optional[discord.User]):
+    def __init__(self, cog: "EmojiCog", message: discord.InteractionMessage, raw_text: str, reply_user: Optional[discord.User], reply_text: Optional[str] = None):
         super().__init__()
         self.cog = cog
         self.target_message = message
         self.reply_user = reply_user
+        self.reply_text = reply_text
 
         self.text_input = discord.ui.TextInput(
             label="Message Content",
@@ -112,12 +113,17 @@ class EditMessageModal(discord.ui.Modal, title="Edit Last Message"):
         if self.reply_user:
             processed_text += f"\n-# Replying to {self.reply_user.mention}"
 
-        await self.target_message.edit(content=processed_text)
+        embed = None
+        if self.reply_text:
+            embed = discord.Embed(description=self.reply_text)
+
+        await self.target_message.edit(content=processed_text, embed=embed)
 
         self.cog.last_messages[interaction.user.id] = {
             "message": self.target_message,
             "raw_text": new_raw_text,
             "reply_user": self.reply_user,
+            "reply_text": self.reply_text,
         }
 
 
@@ -301,17 +307,24 @@ class EmojiCog(commands.Cog):
         inter: discord.Interaction,
         text: str,
         reply: Optional[discord.User] = None,
+        reply_text: Optional[str] = None,
     ):
         processed_text = self.repl(text.replace("\\n", "\n"))
         if reply:
             processed_text += f"\n-# Replying to {reply.mention}"
-        await inter.response.send_message(processed_text)
+
+        embed = None
+        if reply_text:
+            embed = discord.Embed(description=reply_text)
+
+        await inter.response.send_message(processed_text, embed=embed)
         msg = await inter.original_response()
 
         self.last_messages[inter.user.id] = {
             "message": msg,
             "raw_text": text,
             "reply_user": reply,
+            "reply_text": reply_text,
         }
 
     # /ed
@@ -337,7 +350,11 @@ class EmojiCog(commands.Cog):
             if user_data["reply_user"]:
                 processed_text += f"\n-# Replying to {user_data['reply_user'].mention}"
 
-            await user_data["message"].edit(content=processed_text)
+            embed = None
+            if user_data.get("reply_text"):
+                embed = discord.Embed(description=user_data["reply_text"])
+
+            await user_data["message"].edit(content=processed_text, embed=embed)
 
             # Update the cached raw text so future edits work
             self.last_messages[inter.user.id]["raw_text"] = text
@@ -349,7 +366,8 @@ class EmojiCog(commands.Cog):
             cog=self,
             message=user_data["message"],
             raw_text=user_data["raw_text"],
-            reply_user=user_data["reply_user"]
+            reply_user=user_data["reply_user"],
+            reply_text=user_data.get("reply_text")
         )
         await inter.response.send_modal(modal)
 

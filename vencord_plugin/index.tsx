@@ -802,6 +802,13 @@ export default definePlugin({
                                 name: "reply",
                                 value: pendingReply.message.author.id,
                             });
+                            if (pendingReply.message.content) {
+                                options.push({
+                                    type: 3,
+                                    name: "reply_text",
+                                    value: pendingReply.message.content.substring(0, 2000),
+                                });
+                            }
                         }
 
                         const guildId =
