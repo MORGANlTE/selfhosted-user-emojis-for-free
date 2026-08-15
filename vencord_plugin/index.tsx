@@ -14,6 +14,8 @@ import definePlugin, { OptionType } from "@utils/types";
 import { findStore } from "@webpack";
 import {
     AuthenticationStore,
+    UserStore,
+    FluxDispatcher,
     GuildStore,
     MessageActions,
     RestAPI,
@@ -51,6 +53,11 @@ const settings = definePluginSettings({
         type: OptionType.STRING,
         description: "Selected installed user app ID (auto-discovered)",
         default: "",
+    },
+    botPingToUserPing: {
+        type: OptionType.BOOLEAN,
+        description: "Receive a ping when someone pings the bot",
+        default: true
     },
     storeName: {
         type: OptionType.STRING,
@@ -649,6 +656,69 @@ export default definePlugin({
                 }
             );
         }
+
+
+        // --- INCOMING MESSAGE DISPATCH INTERCEPTOR (BOT PING TO USER PING) ---
+        patcherManager.instead(
+            FluxDispatcher,
+            "dispatch",
+            (args, orig, thisObj) => {
+                const [event] = args;
+                if (event && (event.type === "MESSAGE_CREATE" || event.type === "MESSAGE_UPDATE") && settings.store.botPingToUserPing) {
+                    try {
+                        const message = event.message;
+                        const botId = settings.store.selectedAppId;
+                        const currentUser = UserStore?.getCurrentUser?.();
+
+                        if (message && botId && currentUser) {
+                            const botName = pluginStore.getSelectedApp()?.appName || "";
+
+                            let isPinged = false;
+
+                            // 1. Check mentions
+                            if (message.mentions && Array.isArray(message.mentions)) {
+                                if (message.mentions.some(m => m.id === botId)) {
+                                    isPinged = true;
+                                }
+                            }
+
+                            // 2. Check content
+                            if (!isPinged && message.content && typeof message.content === "string") {
+                                if (message.content.includes(botId) || (botName && message.content.includes(`@${botName}`))) {
+                                    isPinged = true;
+                                }
+                            }
+
+                            // 3. Check embeds
+                            if (!isPinged && message.embeds && Array.isArray(message.embeds)) {
+                                const embedStr = JSON.stringify(message.embeds);
+                                if (embedStr.includes(botId) || (botName && embedStr.includes(`@${botName}`))) {
+                                    isPinged = true;
+                                }
+                            }
+
+                            // 4. Check references
+                            if (!isPinged && message.referenced_message?.author?.id === botId) {
+                                isPinged = true;
+                            }
+
+                            if (isPinged) {
+                                if (!message.mentions || !Array.isArray(message.mentions)) {
+                                    message.mentions = [];
+                                }
+                                const hasUserMention = message.mentions.some(m => m.id === currentUser.id);
+                                if (!hasUserMention) {
+                                    message.mentions.push(currentUser);
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Error in BotPingToUserPing interceptor", err);
+                    }
+                }
+                return orig.apply(thisObj, args);
+            }
+        );
 
         // --- MESSAGE DISPATCH INTERCEPTOR ---
         patcherManager.instead(
