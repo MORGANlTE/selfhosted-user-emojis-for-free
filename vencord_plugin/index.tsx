@@ -675,31 +675,38 @@ export default definePlugin({
 
                             let isPinged = false;
 
-                            // 1. Check mentions
-                            if (message.mentions && Array.isArray(message.mentions)) {
+                            // 1. Check if the bot is actually replied to natively
+                            if (message.referenced_message?.author?.id === botId) {
+                                isPinged = true;
+                            }
+
+                            // 2. Check if the bot is natively mentioned
+                            if (!isPinged && message.mentions && Array.isArray(message.mentions)) {
                                 if (message.mentions.some(m => m.id === botId)) {
                                     isPinged = true;
                                 }
                             }
 
-                            // 2. Check content
-                            if (!isPinged && message.content && typeof message.content === "string") {
-                                if (message.content.includes(botId) || (botName && message.content.includes(`@${botName}`))) {
+                            // 3. Check for specific fake replies or embed mentions
+                            if (!isPinged) {
+                                const embedStr = message.embeds ? JSON.stringify(message.embeds) : "";
+                                const contentStr = message.content || "";
+
+                                const replyToUser = "Replying to @" + currentUser.username;
+                                const replyToGlobal = currentUser.globalName ? "Replying to @" + currentUser.globalName : null;
+                                const replyToBot = botName ? "Replying to @" + botName : null;
+
+                                const containsReply = (str) => {
+                                    return str.includes(replyToUser) ||
+                                           (replyToGlobal && str.includes(replyToGlobal)) ||
+                                           (replyToBot && str.includes(replyToBot)) ||
+                                           str.includes(`<@${botId}>`) ||
+                                           str.includes(`<@!${botId}>`);
+                                };
+
+                                if (containsReply(contentStr) || containsReply(embedStr)) {
                                     isPinged = true;
                                 }
-                            }
-
-                            // 3. Check embeds
-                            if (!isPinged && message.embeds && Array.isArray(message.embeds)) {
-                                const embedStr = JSON.stringify(message.embeds);
-                                if (embedStr.includes(botId) || (botName && embedStr.includes(`@${botName}`))) {
-                                    isPinged = true;
-                                }
-                            }
-
-                            // 4. Check references
-                            if (!isPinged && message.referenced_message?.author?.id === botId) {
-                                isPinged = true;
                             }
 
                             if (isPinged) {
