@@ -17,6 +17,10 @@ from helpers.api import DiscordAPIHelper
 
 EMOJI_FILE = "emojis.json"
 PAT = re.compile(r";([A-Za-z0-9_]+);")
+PACKS_REMOTE_URL = (
+    "https://raw.githubusercontent.com/MORGANlTE/selfhosted-user-emojis-for-free/refs/heads/main/vencord_plugin/packs_index.json"
+)
+PACKS_FALLBACK_FILE = "vencord_plugin/packs_index.json"
 
 
 
@@ -235,7 +239,41 @@ class EmojiCog(commands.Cog):
         self.bot = bot
         self.emotes = {}
         self.last_messages = {}
+        self._cached_packs = None
         self.load()
+
+    async def fetch_packs(self, force_refresh: bool = False) -> list:
+        if not force_refresh and self._cached_packs:
+            return self._cached_packs
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    PACKS_REMOTE_URL,
+                    timeout=aiohttp.ClientTimeout(total=8),
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json(content_type=None)
+                        if isinstance(data, list):
+                            self._cached_packs = data
+                            return data
+        except Exception as e:
+            print(f"[!] Warning: Failed to fetch remote packs_index.json: {e}")
+
+        if self._cached_packs:
+            return self._cached_packs
+
+        if os.path.exists(PACKS_FALLBACK_FILE):
+            try:
+                with open(PACKS_FALLBACK_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        self._cached_packs = data
+                        return data
+            except Exception as e:
+                print(f"[!] Warning: Failed to read fallback packs_index.json: {e}")
+
+        return []
 
     def load(self):
         if os.path.exists(EMOJI_FILE):
@@ -442,21 +480,17 @@ class EmojiCog(commands.Cog):
         return choices
 
     async def pack_name_autocomplete(self, inter: discord.Interaction, current: str):
-        import os, json
         choices = []
-        packs_file = "vencord_plugin/packs_index.json"
-        if os.path.exists(packs_file):
-            try:
-                with open(packs_file, "r", encoding="utf-8") as f:
-                    packs = json.load(f)
-                for p in packs:
-                    name = p.get("name", "")
-                    if current.lower() in name.lower():
-                        choices.append(app_commands.Choice(name=name, value=name))
-                        if len(choices) >= 25:
-                            break
-            except:
-                pass
+        try:
+            packs = await self.fetch_packs()
+            for p in packs:
+                name = p.get("name", "")
+                if current.lower() in name.lower():
+                    choices.append(app_commands.Choice(name=name, value=name))
+                    if len(choices) >= 25:
+                        break
+        except Exception:
+            pass
         return choices
 
     # /renameemoji
@@ -743,15 +777,11 @@ class EmojiCog(commands.Cog):
         pack_name: str,
     ):
         await inter.response.defer(ephemeral=True)
-        import os, json
 
-        packs_file = "vencord_plugin/packs_index.json"
-        if not os.path.exists(packs_file):
-            await inter.followup.send("❌ Packs index file not found.", ephemeral=True)
+        packs = await self.fetch_packs()
+        if not packs:
+            await inter.followup.send("❌ Packs index could not be loaded.", ephemeral=True)
             return
-
-        with open(packs_file, "r", encoding="utf-8") as f:
-            packs = json.load(f)
 
         pack = next((p for p in packs if p.get("name", "").lower() == pack_name.lower()), None)
         if not pack:
@@ -791,16 +821,12 @@ class EmojiCog(commands.Cog):
         pack_name: str,
     ):
         await inter.response.defer(ephemeral=True)
-        import aiohttp
 
         try:
-            # We now load packs natively from the vencord plugin folder
-            packs_file = "vencord_plugin/packs_index.json"
-            if not os.path.exists(packs_file):
-                await inter.followup.send("❌ Packs index file not found.", ephemeral=True)
+            packs = await self.fetch_packs()
+            if not packs:
+                await inter.followup.send("❌ Packs index could not be loaded.", ephemeral=True)
                 return
-            with open(packs_file, "r", encoding="utf-8") as f:
-                packs = json.load(f)
 
             pack = next((p for p in packs if p.get("name", "").lower() == pack_name.lower()), None)
             if not pack:

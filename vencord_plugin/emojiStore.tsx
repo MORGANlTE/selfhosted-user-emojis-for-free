@@ -12,6 +12,51 @@ import {
 import { insertTextIntoChatInputBox } from "@utils/discord";
 import { findByProps } from "@webpack";
 
+const REMOTE_PACKS_URL =
+  "https://raw.githubusercontent.com/MORGANlTE/selfhosted-user-emojis-for-free/refs/heads/main/vencord_plugin/packs_index.json";
+
+async function fetchPacksFromRemote(): Promise<any[]> {
+  const sources = [
+    REMOTE_PACKS_URL,
+    "https://cdn.jsdelivr.net/gh/MORGANlTE/selfhosted-user-emojis-for-free@main/vencord_plugin/packs_index.json",
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(REMOTE_PACKS_URL)}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(REMOTE_PACKS_URL)}`,
+  ];
+
+  for (const src of sources) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(src, {
+        signal: controller.signal,
+        cache: "no-cache",
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const text = await res.text();
+        const data = JSON.parse(text);
+        if (Array.isArray(data) && data.length > 0) {
+          return data;
+        }
+      }
+    } catch (e) {
+      console.warn(`[CustomEmojis] Failed to load packs from ${src}:`, e);
+    }
+  }
+
+  // Fallback to local packs_index.json if available
+  try {
+    const localPacks = require("./packs_index.json");
+    if (Array.isArray(localPacks)) {
+      return localPacks;
+    }
+  } catch (e) {
+    console.error("[CustomEmojis] Failed to load local fallback packs_index.json", e);
+  }
+
+  return [];
+}
+
 export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
   const [search, setSearch] = React.useState("");
   const [selectedPack, setSelectedPack] = React.useState("All");
@@ -38,19 +83,17 @@ export function CustomEmojiStorePopout({ onClose, pluginStore }: any) {
   React.useEffect(() => {
     if (activeTab === "store" && storePacks.length === 0) {
       setLoadingPacks(true);
-      // Discord's CSP blocks raw gist/github fetch requests natively via `fetch()`.
-      // Instead of fetching from GitHub, we import the local JSON file.
-      // You can update `packs_index.json` in your plugin folder directly!
-      try {
-        // We use require to let Webpack bundle the JSON file statically
-        const localPacks = require("./packs_index.json");
-        setStorePacks(Array.isArray(localPacks) ? localPacks : []);
-      } catch (e) {
-        console.error("Failed to load local packs_index.json", e);
-        setStorePacks([]);
-      } finally {
-        setLoadingPacks(false);
-      }
+      fetchPacksFromRemote()
+        .then((packs) => {
+          setStorePacks(packs);
+        })
+        .catch((e) => {
+          console.error("Failed to load remote packs_index.json", e);
+          setStorePacks([]);
+        })
+        .finally(() => {
+          setLoadingPacks(false);
+        });
     }
   }, [activeTab]);
 
